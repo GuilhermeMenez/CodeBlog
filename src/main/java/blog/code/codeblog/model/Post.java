@@ -25,6 +25,7 @@ public class Post {
     private String texto;
 
     private String autor;
+
     @JsonFormat(pattern = "dd/MM/yyyy")
     private LocalDate data;
 

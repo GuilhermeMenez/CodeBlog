@@ -9,11 +9,13 @@
               crossorigin="anonymous">
     </head>
     <body>
-    <header>
-        <nav class="navbar navbar-expand-lg navbar-light bg-light">
-            <span class="navbar-brand mb-0 h1" style="font-weight: bold">MyCodeBlog</span>
-        </nav>
-    </header>
+
+   <header>
+       <nav class="navbar navbar-expand-lg navbar-light bg-light justify-content-between px-3"> <!-- Espaço nas laterais -->
+           <span class="navbar-brand mb-0 h1 fw-bold">MyCodeBlog</span>
+               <a href="/newpost" class="btn btn-primary">Novo Post</a>
+       </nav>
+   </header>
 
     <section>
         <!--breadcrumb-->
@@ -30,7 +32,7 @@
                         <span th:text="${post.autor}"></span>
                         <span th:text="${post.data}"></span>
                     </p>
-                    <a href="">
+                    <a th:href="@{/posts/{id}(id=${post.id})}">
                         <h4 class="card-title" style="font-weight: bold; color: black; padding-top: 5px">
                             <span th:text="${post.titulo}"></span>
                         </h4>

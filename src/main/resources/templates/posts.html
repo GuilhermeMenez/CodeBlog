@@ -26,7 +26,7 @@
                 </ol>
             </nav>
             <!--card-->
-            <div class="card shadow-sm bg-white rounded" style= "margin-top: 20px" th:each="post: ${posts}">
+            <div class="card shadow-sm bg-white rounded" style= "margin-top: 20px" th:each="post:${posts}">
                 <div class="card-body">
                     <p class="card-subtitle mb-2 text-muted" style="font-size: 0.8rem">
                         <span th:text="${post.autor}"></span>
@@ -38,7 +38,7 @@
                         </h4>
                     </a>
                     <p class="card-text">
-                        <span th:utext="${#strings.abbreviate(post.getTexto(),400)}"></span>
+                        <span th:utext="${#strings.abbreviate(post.texto,400)}"></span>
                     </p>
                 </div>
             </div>

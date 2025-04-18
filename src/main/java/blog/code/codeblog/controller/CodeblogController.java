@@ -51,4 +51,23 @@ public class CodeblogController {
         return "redirect:/posts";
     }
 
+    @RequestMapping(value = "/editpost/{id}", method = RequestMethod.PUT)
+    public String editPost(@PathVariable("id") long id, @Valid Post updatedPost,
+                           BindingResult result, RedirectAttributes attributes) {
+        if (result.hasErrors()) {
+            attributes.addFlashAttribute("mensagem", "Verifique se os campos obrigatórios foram preenchidos!");
+            return "redirect:/editpost/" + id;
+        }
+        Post post = codeBlogService.findById(id);
+        post.setTitulo(updatedPost.getTitulo());
+        post.setAutor(updatedPost.getAutor());
+        post.setTexto(updatedPost.getTexto());
+        codeBlogService.save(post);
+        return "redirect:/posts/" + id;
+    }
+
+
+
+    
+
 }

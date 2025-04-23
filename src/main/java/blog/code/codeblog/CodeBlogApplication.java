@@ -11,6 +11,7 @@ public class CodeBlogApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(CodeBlogApplication.class, args);
+
     }
 
     @Bean

@@ -26,12 +26,13 @@ public class CodeblogController {
     }
 
 
-    @PostMapping(value="/newpost")
-    public Post savePost(@RequestBody Post post){
-        return codeBlogService.save(post);
+    @PostMapping(value = "/newpost")
+    public ResponseEntity<Post> createPost(@RequestBody @Valid Post post) {
+        Post savedPost = codeBlogService.save(post);
+        return ResponseEntity.status(201).body(savedPost);
     }
 
-    @PutMapping("/posts/{id}")
+    @PutMapping("/posts/edit/{id}")
     public ResponseEntity<?> updatePost(@PathVariable("id") long id, @RequestBody @Valid Post updatedPost) {
         Post existingPost = codeBlogService.findById(id);
         if (existingPost == null) {
@@ -44,11 +45,17 @@ public class CodeblogController {
         existingPost.setData(updatedPost.getData());
         codeBlogService.save(existingPost);
 
-        return ResponseEntity.ok(existingPost);
+        return ResponseEntity.ok().body(existingPost);
     }
 
-
-
-
+    @DeleteMapping("/posts/{id}")
+    public ResponseEntity<?> deletePost(@PathVariable("id") long id) {
+        Post existingPost = codeBlogService.findById(id);
+        if (existingPost == null) {
+            return ResponseEntity.notFound().build();
+        }
+        codeBlogService.delete(id);
+        return ResponseEntity.ok().build();
+    }
 
 }

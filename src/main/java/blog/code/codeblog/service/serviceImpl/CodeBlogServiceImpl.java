@@ -21,7 +21,7 @@ public class CodeBlogServiceImpl implements CodeBlogService {
 
     @Override
     public Post findById(Long id) {
-        return codeblogRepository.findById(id).get();
+        return codeblogRepository.findById(id).isPresent() ? codeblogRepository.findById(id).get() : null;
     }
 
     @Override

@@ -16,7 +16,7 @@ import lombok.Setter;
 @Table(name = "TB_POST")
 public class Post {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @NotBlank

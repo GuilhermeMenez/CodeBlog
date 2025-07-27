@@ -5,6 +5,7 @@ import blog.code.codeblog.dto.LoginResponseDTO;
 import blog.code.codeblog.dto.UserDTO;
 import blog.code.codeblog.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -24,6 +25,7 @@ public class AuthorizationService implements UserDetailsService {
     private TokenService tokenService;
 
     @Autowired
+    @Lazy
     private AuthenticationManager authenticationManager;
 
     @Autowired
@@ -44,15 +46,17 @@ public class AuthorizationService implements UserDetailsService {
         User newUser = new User(user.name(),user.email(), encryptedPassword, user.role());
         userService.saveUser(newUser);
 
-        AuthenticationDTO userAuthenticate = new AuthenticationDTO(newUser.getLogin(), newUser.getPassword());
+        AuthenticationDTO userAuthenticate = new AuthenticationDTO(user.email(), user.password());
         var loginResponse = login(userAuthenticate);
         return loginResponse.getBody().token();
     }
 
     public ResponseEntity<LoginResponseDTO> login(AuthenticationDTO authenticationDTO){
         var UsernamePassword = new UsernamePasswordAuthenticationToken(authenticationDTO.login(), authenticationDTO.password());
-        var auth =  authenticationManager.authenticate(UsernamePassword);
-        var token = tokenService.generateToken((UserDTO) auth.getPrincipal());
+        var auth = authenticationManager.authenticate(UsernamePassword);
+        User user = (User) auth.getPrincipal();
+        UserDTO userDTO = new UserDTO(user.getName(), user.getLogin(), user.getPassword(), user.getRole());
+        var token = tokenService.generateToken(userDTO);
 
         return ResponseEntity.ok(new LoginResponseDTO(token));
     }

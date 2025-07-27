@@ -1,6 +1,7 @@
 package blog.code.codeblog.service;
 
-import blog.code.codeblog.model.User;
+
+import blog.code.codeblog.dto.UserDTO;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
@@ -20,12 +21,12 @@ public class TokenService {
     private String secret;
 
 
-    public String generateToken(User user){
+    public String generateToken(UserDTO user){
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
             return JWT.create()
                     .withIssuer("CodeBlog")
-                    .withSubject(user.getLogin())
+                    .withSubject(user.email())
                     .withExpiresAt(gererateExpirationDate())
                     .sign(algorithm);
         }catch (JWTCreationException e){
@@ -48,7 +49,6 @@ public class TokenService {
         return "";
     }
 }
-
 
 
     private Instant gererateExpirationDate() {

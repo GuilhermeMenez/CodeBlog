@@ -4,6 +4,7 @@ package blog.code.codeblog.service;
 import blog.code.codeblog.dto.UserDTO;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.JWTCreationException;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,7 @@ public class TokenService {
                     .withSubject(user.email())
                     .withExpiresAt(gererateExpirationDate())
                     .sign(algorithm);
-        }catch (Exception e){
+        }catch (JWTCreationException e){
             throw new RuntimeException("Erro ao gerar token JWT", e);
         }
     }

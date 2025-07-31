@@ -5,6 +5,7 @@ import blog.code.codeblog.dto.UserDTO;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -23,11 +24,13 @@ class UserServiceTest {
     private UserService userService;
 
     @BeforeEach
+    @DisplayName("Configuração inicial do UserServiceTest")
     void setUp() {
         MockitoAnnotations.openMocks(this);
     }
 
     @Test
+    @DisplayName("Deve encontrar um usuário pelo ID com sucesso")
     void findById() {
         User user = new User();
         user.setId("123");
@@ -41,6 +44,7 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("Deve encontrar um usuário pelo login com sucesso")
     void findByLogin() {
         User user = new User();
         user.setLogin("email@email.com");
@@ -54,6 +58,7 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("Deve salvar um novo usuário com sucesso")
     void saveUser() {
         User user = new User();
         when(userRepository.save(user)).thenReturn(user);
@@ -64,6 +69,7 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("Deve atualizar um usuário existente com sucesso")
     void updateUser() {
         String id = "456";
         User existingUser = new User();
@@ -85,6 +91,7 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("Deve deletar um usuário pelo ID com sucesso")
     void deleteUser() {
         String id = "789";
         when(userRepository.existsById(id)).thenReturn(true);
@@ -97,8 +104,8 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("Deve lidar corretamente com as ações de seguir e deixar de seguir usuários")
     void handleFollowUnfollow() {
-        // Supondo que a classe FollowUnfollowRequestDTO tenha os métodos seguidos abaixo:
         String followerId = "1";
         String followedId = "2";
 
@@ -116,18 +123,17 @@ class UserServiceTest {
         boolean followResult = userService.handleFollowUnfollow(dto, true);
         verify(followed).addFollower(follower);
         verify(userRepository).save(followed);
-        assertFalse(followResult); // O método retorna false, pois não há return true após o save
+        assertFalse(followResult);
 
         // Teste para deixar de seguir
         reset(followed);
         when(dto.followerId()).thenReturn(followerId);
-        when(dto.followedId()).thenReturn(followedId);
         boolean unfollowResult = userService.handleFollowUnfollow(dto, false);
         verify(followed).removeFollower(follower);
         verify(userRepository, times(2)).save(followed);
-        assertFalse(unfollowResult); // O método retorna false, pois não há return true após o save
+        assertFalse(unfollowResult);
 
-        // Teste para mesmo id (não pode seguir a si mesmo)
+        // Teste para caso onde um usuário tenta seguir a si mesmo
         when(dto.followerId()).thenReturn("x");
         when(dto.followedId()).thenReturn("x");
         boolean sameIdResult = userService.handleFollowUnfollow(dto, true);

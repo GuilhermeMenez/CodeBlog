@@ -119,13 +119,11 @@ class UserServiceTest {
         when(userRepository.findById(followerId)).thenReturn(Optional.of(follower));
         when(userRepository.findById(followedId)).thenReturn(Optional.of(followed));
 
-        // Teste para seguir
         boolean followResult = userService.handleFollowUnfollow(dto, true);
         verify(followed).addFollower(follower);
         verify(userRepository).save(followed);
         assertFalse(followResult);
 
-        // Teste para deixar de seguir
         reset(followed);
         when(dto.followerId()).thenReturn(followerId);
         boolean unfollowResult = userService.handleFollowUnfollow(dto, false);
@@ -133,7 +131,6 @@ class UserServiceTest {
         verify(userRepository, times(2)).save(followed);
         assertFalse(unfollowResult);
 
-        // Teste para caso onde um usuário tenta seguir a si mesmo
         when(dto.followerId()).thenReturn("x");
         when(dto.followedId()).thenReturn("x");
         boolean sameIdResult = userService.handleFollowUnfollow(dto, true);

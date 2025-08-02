@@ -23,7 +23,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import org.junit.jupiter.api.DisplayName;
 
-class AuthorizationServiceTest {
+    @Mock
+    private AuthenticationManager authenticationManager;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
+    @BeforeEach
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
 
     @InjectMocks
     private AuthorizationService authorizationService;

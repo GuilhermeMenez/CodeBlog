@@ -3,6 +3,7 @@ package blog.code.codeblog.service;
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.repository.PostRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -22,13 +23,14 @@ class PostServiceImplTest {
     private PostServiceImpl postService;
 
     @BeforeEach
+    @DisplayName("Configuração inicial para PostServiceImpl")
     void setUp() {
         MockitoAnnotations.openMocks(this);
     }
 
     @Test
+    @DisplayName("Deve retornar todos os posts corretamente")
     void findAll() {
-
         List<Post> posts = Arrays.asList(new Post(), new Post());
         when(postRepository.findAll()).thenReturn(posts);
 
@@ -39,6 +41,7 @@ class PostServiceImplTest {
     }
 
     @Test
+    @DisplayName("Deve buscar e retornar um post pelo ID")
     void findById() {
         Post post = new Post();
         post.setId(1L);
@@ -52,6 +55,7 @@ class PostServiceImplTest {
     }
 
     @Test
+    @DisplayName("Deve salvar um novo post com sucesso")
     void save() {
         Post post = new Post();
         when(postRepository.save(post)).thenReturn(post);
@@ -63,6 +67,7 @@ class PostServiceImplTest {
     }
 
     @Test
+    @DisplayName("Deve deletar um post pelo ID")
     void delete() {
         Long id = 1L;
 

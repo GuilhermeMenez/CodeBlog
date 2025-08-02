@@ -20,7 +20,6 @@ class UserRepositoryTest {
     @Autowired
     private UserRepository userRepository;
 
-
     @Test
     @DisplayName("Deve encontrar usuário por login")
     void findByLogin() {

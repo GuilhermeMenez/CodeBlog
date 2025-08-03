@@ -7,10 +7,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Data
 @Setter
@@ -21,6 +18,13 @@ import java.util.Set;
 @Table(name = "tb_user")
 @Entity
 public class User implements UserDetails {
+
+    public User(String name, String login, String password, UserRoles role) {
+        this.name = name;
+        this.login = login;
+        this.password = password;
+        this.role = role;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -39,13 +43,6 @@ public class User implements UserDetails {
     @Lob
     @Column(name = "photo")
     private byte[] photo;
-
-    public User(String name, String login, String password, UserRoles role) {
-        this.name = name;
-        this.login = login;
-        this.password = password;
-        this.role = role;
-    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -79,5 +76,8 @@ public class User implements UserDetails {
 
     @ManyToMany(mappedBy = "followers")
     private Set<User> following = new HashSet<>();
+
+    @OneToMany(mappedBy = "user")
+    private List<Post> posts;
 
 }

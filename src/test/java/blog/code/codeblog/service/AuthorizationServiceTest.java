@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -23,16 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import org.junit.jupiter.api.DisplayName;
 
-    @Mock
-    private AuthenticationManager authenticationManager;
-
-    @Mock
-    private PasswordEncoder passwordEncoder;
-
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
+class AuthorizationServiceTest {
 
     @InjectMocks
     private AuthorizationService authorizationService;
@@ -46,8 +36,6 @@ import org.junit.jupiter.api.DisplayName;
     @Mock
     private AuthenticationManager authenticationManager;
 
-    @Mock
-    UserRepository userRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;

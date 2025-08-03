@@ -17,7 +17,7 @@ import lombok.Setter;
 public class Post {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     @NotBlank
     private String titulo;
@@ -32,6 +32,7 @@ public class Post {
     @JsonFormat(pattern = "dd/MM/yyyy")
     private LocalDate data;
 
-
-
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
 }

@@ -114,9 +114,7 @@ class PostServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            postService.getAllUserPosts(userId);
-        });
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> postService.getAllUserPosts(userId));
 
         assertEquals("usuário não encontrado", exception.getMessage());
         verify(userRepository, times(1)).findById(userId);
@@ -175,9 +173,7 @@ class PostServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            postService.getBalancedFeed(userId, 0, 3);
-        });
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> postService.getBalancedFeed(userId, 0, 3));
 
         assertEquals("Usuário não encontrado", exception.getMessage());
         verify(userRepository, times(1)).findById(userId);

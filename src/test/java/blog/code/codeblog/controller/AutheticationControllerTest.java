@@ -6,7 +6,6 @@ import blog.code.codeblog.dto.UserDTO;
 import blog.code.codeblog.enums.UserRoles;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.service.AuthorizationService;
-import blog.code.codeblog.service.TokenService;
 import blog.code.codeblog.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,8 +17,7 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.core.Authentication;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

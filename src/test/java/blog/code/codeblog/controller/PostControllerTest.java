@@ -107,6 +107,7 @@ class PostControllerTest {
 
         assertEquals(200, response.getStatusCodeValue());
         Post atualizado = (Post) response.getBody();
+        assertNotNull(atualizado);
         assertEquals("Novo Título", atualizado.getTitulo());
         assertEquals("Novo Autor", atualizado.getAutor());
         verify(postService, times(1)).save(mockPost1);

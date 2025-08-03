@@ -1,11 +1,9 @@
 package blog.code.codeblog.service;
 
-import blog.code.codeblog.dto.AuthenticationDTO;
-import blog.code.codeblog.dto.LoginResponseDTO;
+
 import blog.code.codeblog.dto.UserDTO;
 import blog.code.codeblog.enums.UserRoles;
 import blog.code.codeblog.model.User;
-import blog.code.codeblog.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;

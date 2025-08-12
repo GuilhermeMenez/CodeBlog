@@ -2,6 +2,7 @@ package blog.code.codeblog.service;
 
 import blog.code.codeblog.dto.FollowUnfollowRequestDTO;
 import blog.code.codeblog.dto.UserDTO;
+import blog.code.codeblog.enums.UserRoles;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,10 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private BCryptPasswordEncoder bCryptPasswordEncoder;
+
 
     @InjectMocks
     private UserService userService;
@@ -70,37 +75,56 @@ class UserServiceTest {
 
     @Test
     @DisplayName("Deve atualizar um usuário existente com sucesso")
-    void updateUser() {
-        String id = "456";
+    void updateUserShouldReturnUpdatedUserWhenUserExists() {
         User existingUser = new User();
-        existingUser.setId(id);
+        existingUser.setId("1");
+        existingUser.setName("Old Name");
+        existingUser.setLogin("old@email.com");
+        existingUser.setPassword("oldPassword");
 
-        UserDTO dto = new UserDTO("Novo Nome", "novo@email.com", "novaSenha", null);
+        UserDTO userDTO = new UserDTO("New Name", "new@email.com", "newPassword", UserRoles.COSTUMER);
 
-        when(userRepository.findById(id)).thenReturn(Optional.of(existingUser));
-        when(userRepository.save(any(User.class))).then(AdditionalAnswers.returnsFirstArg());
+        when(userRepository.findById("1")).thenReturn(Optional.of(existingUser));
+        when(bCryptPasswordEncoder.encode("newPassword")).thenReturn("encodedNewPassword");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Optional<User> updatedUser = userService.updateUser(id, dto);
+        Optional<User> result = userService.updateUser("1", userDTO);
 
-        assertTrue(updatedUser.isPresent());
-        assertEquals("Novo Nome", updatedUser.get().getName());
-        assertEquals("novo@email.com", updatedUser.get().getLogin());
-        assertTrue(new BCryptPasswordEncoder().matches("novaSenha", updatedUser.get().getPassword()));
-        verify(userRepository).findById(id);
-        verify(userRepository).save(any(User.class));
+        assertTrue(result.isPresent());
+        User updatedUser = result.get();
+        assertEquals("New Name", updatedUser.getName());
+        assertEquals("new@email.com", updatedUser.getLogin());
+        assertEquals("encodedNewPassword", updatedUser.getPassword());
+
+        verify(userRepository, times(1)).save(existingUser);
+        verify(bCryptPasswordEncoder, times(1)).encode("newPassword");
     }
 
     @Test
     @DisplayName("Deve deletar um usuário pelo ID com sucesso")
-    void deleteUser() {
+    void deleteUserShouldDeleteUserWhenExists() {
         String id = "789";
         when(userRepository.existsById(id)).thenReturn(true);
+        doNothing().when(userRepository).deleteById(id);
 
         boolean result = userService.deleteUser(id);
 
         assertTrue(result);
         verify(userRepository).existsById(id);
         verify(userRepository).deleteById(id);
+    }
+
+    @Test
+    @DisplayName("Deve retornar falso ao tentar deletar usuário inexistente")
+    void deleteUserShouldReturnFalseWhenUserDoesNotExist() {
+        String id = "999";
+        when(userRepository.existsById(id)).thenReturn(false);
+
+        boolean result = userService.deleteUser(id);
+
+        assertFalse(result);
+        verify(userRepository).existsById(id);
+        verify(userRepository, never()).deleteById(any());
     }
 
     @Test

@@ -71,5 +71,8 @@ public class PostServiceImpl implements PostService {
                .orElseThrow(() -> new RuntimeException("usuário não encontrado"));
     }
 
+    public Post getReference(String  id){
+        return postRepository.getReferenceById(Long.valueOf(id));
+    }
 
 }

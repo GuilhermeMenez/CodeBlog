@@ -5,7 +5,7 @@ import blog.code.codeblog.dto.UserDTO;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -15,6 +15,8 @@ public class UserService {
     @Autowired
     UserRepository userRepository;
 
+    @Autowired
+    PasswordEncoder bCryptPasswordEncoder;
 
     public Optional<User> findById(String userId){
         return userRepository.findById(userId);
@@ -33,7 +35,7 @@ public class UserService {
                 .map(existingUser -> {
                     existingUser.setName(user.name());
                     existingUser.setLogin(user.email());
-                    existingUser.setPassword(new BCryptPasswordEncoder().encode(user.password()));
+                    existingUser.setPassword(bCryptPasswordEncoder.encode(user.password()));
                     return userRepository.save(existingUser);
                 });
     }
@@ -64,6 +66,10 @@ public class UserService {
 
                         }));
         return false;
+    }
+
+    public User getReference(String id){
+        return userRepository.getReferenceById(id);
     }
 
 }

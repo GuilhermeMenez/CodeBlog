@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController("/comment")
 public class CommentController {
 
@@ -20,12 +22,12 @@ public class CommentController {
     }
 
     @PutMapping("UpdateComment/{id}")
-    public ResponseEntity<CommentResponseDTO> updateComment(@PathVariable("id") Long id, @RequestBody CommentDTO comment) {
+    public ResponseEntity<CommentResponseDTO> updateComment(@PathVariable("id") UUID id, @RequestBody CommentDTO comment) {
         return ResponseEntity.ok(commentService.updateComment(comment, id));
     }
 
     @DeleteMapping("/deleteComment/{id}")
-    public ResponseEntity<?> deleteComment(@PathVariable("id") Long id) {
+    public ResponseEntity<?> deleteComment(@PathVariable("id") UUID  id) {
         commentService.deleteComment(id);
         return ResponseEntity.ok().build();
     }

@@ -1,4 +1,6 @@
 package blog.code.codeblog.dto;
 
 
-public record CommentDTO(String content, String postId, String authorId) { }
+import java.util.UUID;
+
+public record CommentDTO(String content, UUID postId, UUID authorId) { }

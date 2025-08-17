@@ -1,5 +1,6 @@
 package blog.code.codeblog.service;
 
+import blog.code.codeblog.dto.PostDTO;
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.repository.PostRepository;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -27,8 +29,8 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public Optional<Post> findById(String id) {
-        return postRepository.findById(Long.valueOf(id));
+    public Optional<Post> findById(UUID id) {
+        return postRepository.findById(id);
     }
 
     @Override
@@ -37,11 +39,11 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public void delete(String id) {
-        postRepository.deleteById(Long.valueOf(id));
+    public void deletePost(UUID postId) {
+        postRepository.deleteById(postId);
     }
     @Override
-    public List<Post> getBalancedFeed(String userId, int page, int size) {
+    public List<Post> getBalancedFeed(UUID userId, int page, int size) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
         Set<User> following = user.getFollowing();
@@ -65,14 +67,24 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public List<Post>getAllUserPosts(String userId){
+    public List<Post>getAllUserPosts(UUID userId){
        return userRepository.findById(userId)
                 .map(User::getPosts)
                .orElseThrow(() -> new RuntimeException("usuário não encontrado"));
     }
+    @Override
+    public Optional<Post> updatePost(UUID postId, PostDTO updatedPost){
+        return findById(postId)
+                .map(existingPost ->{
+                    existingPost.setTitulo(updatedPost.title());
+                    existingPost.setTexto(updatedPost.content());
+                    existingPost.setData(LocalDate.now());
+                    return postRepository.save(existingPost);
+                });
+    }
 
-    public Post getReference(String  id){
-        return postRepository.getReferenceById(Long.valueOf(id));
+    public Post getReference(UUID  id){
+        return postRepository.getReferenceById(id);
     }
 
 }

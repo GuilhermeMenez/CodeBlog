@@ -12,6 +12,7 @@ import org.mockito.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -37,15 +38,16 @@ class UserServiceTest {
     @Test
     @DisplayName("Deve encontrar um usuário pelo ID com sucesso")
     void findById() {
+        UUID id = UUID.randomUUID();
         User user = new User();
-        user.setId("123");
-        when(userRepository.findById("123")).thenReturn(Optional.of(user));
+        user.setId(id);
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
 
-        Optional<User> result = userService.findById("123");
+        Optional<User> result = userService.findById(id);
 
         assertTrue(result.isPresent());
-        assertEquals("123", result.get().getId());
-        verify(userRepository).findById("123");
+        assertEquals(id, result.get().getId());
+        verify(userRepository).findById(id);
     }
 
     @Test
@@ -76,19 +78,20 @@ class UserServiceTest {
     @Test
     @DisplayName("Deve atualizar um usuário existente com sucesso")
     void updateUserShouldReturnUpdatedUserWhenUserExists() {
+        UUID id = UUID.randomUUID();
         User existingUser = new User();
-        existingUser.setId("1");
+        existingUser.setId(id);
         existingUser.setName("Old Name");
         existingUser.setLogin("old@email.com");
         existingUser.setPassword("oldPassword");
 
         UserDTO userDTO = new UserDTO("New Name", "new@email.com", "newPassword", UserRoles.COSTUMER);
 
-        when(userRepository.findById("1")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findById(id)).thenReturn(Optional.of(existingUser));
         when(bCryptPasswordEncoder.encode("newPassword")).thenReturn("encodedNewPassword");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Optional<User> result = userService.updateUser("1", userDTO);
+        Optional<User> result = userService.updateUser(id, userDTO);
 
         assertTrue(result.isPresent());
         User updatedUser = result.get();
@@ -103,7 +106,7 @@ class UserServiceTest {
     @Test
     @DisplayName("Deve deletar um usuário pelo ID com sucesso")
     void deleteUserShouldDeleteUserWhenExists() {
-        String id = "789";
+        UUID id = UUID.randomUUID();
         when(userRepository.existsById(id)).thenReturn(true);
         doNothing().when(userRepository).deleteById(id);
 
@@ -117,7 +120,7 @@ class UserServiceTest {
     @Test
     @DisplayName("Deve retornar falso ao tentar deletar usuário inexistente")
     void deleteUserShouldReturnFalseWhenUserDoesNotExist() {
-        String id = "999";
+        UUID id = UUID.randomUUID();
         when(userRepository.existsById(id)).thenReturn(false);
 
         boolean result = userService.deleteUser(id);
@@ -130,34 +133,34 @@ class UserServiceTest {
     @Test
     @DisplayName("Deve lidar corretamente com as ações de seguir e deixar de seguir usuários")
     void handleFollowUnfollow() {
-        String followerId = "1";
-        String followedId = "2";
+        UUID followerId = UUID.randomUUID();
+        UUID followedId = UUID.randomUUID();
 
-        FollowUnfollowRequestDTO dto = mock(FollowUnfollowRequestDTO.class);
-        when(dto.followerId()).thenReturn(followerId);
-        when(dto.followedId()).thenReturn(followedId);
+        FollowUnfollowRequestDTO followDto = new FollowUnfollowRequestDTO(followerId, followedId, true);
 
         User follower = mock(User.class);
         User followed = mock(User.class);
 
         when(userRepository.findById(followerId)).thenReturn(Optional.of(follower));
         when(userRepository.findById(followedId)).thenReturn(Optional.of(followed));
+        when(userRepository.save(followed)).thenReturn(followed);
 
-        boolean followResult = userService.handleFollowUnfollow(dto, true);
+        boolean followResult = userService.handleFollowUnfollow(followDto, true);
         verify(followed).addFollower(follower);
-        verify(userRepository).save(followed);
+        verify(userRepository, times(1)).save(followed);
         assertFalse(followResult);
 
-        reset(followed);
-        when(dto.followerId()).thenReturn(followerId);
-        boolean unfollowResult = userService.handleFollowUnfollow(dto, false);
+        // ... existing code ...
+        FollowUnfollowRequestDTO unfollowDto = new FollowUnfollowRequestDTO(followerId, followedId, false);
+        boolean unfollowResult = userService.handleFollowUnfollow(unfollowDto, false);
         verify(followed).removeFollower(follower);
         verify(userRepository, times(2)).save(followed);
         assertFalse(unfollowResult);
 
-        when(dto.followerId()).thenReturn("x");
-        when(dto.followedId()).thenReturn("x");
-        boolean sameIdResult = userService.handleFollowUnfollow(dto, true);
+        UUID sameId = UUID.randomUUID();
+        FollowUnfollowRequestDTO sameIdDto = new FollowUnfollowRequestDTO(sameId, sameId, true);
+        boolean sameIdResult = userService.handleFollowUnfollow(sameIdDto, true);
         assertFalse(sameIdResult);
     }
+
 }

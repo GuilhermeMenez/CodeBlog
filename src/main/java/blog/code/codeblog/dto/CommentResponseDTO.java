@@ -1,6 +1,7 @@
 package blog.code.codeblog.dto;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
-public record CommentResponseDTO(long id, String content, String author, LocalDateTime createdAt) {
+public record CommentResponseDTO(UUID id, String content, String author, LocalDateTime createdAt) {
 }

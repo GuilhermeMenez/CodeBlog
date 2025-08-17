@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class UserService {
@@ -18,7 +19,7 @@ public class UserService {
     @Autowired
     PasswordEncoder bCryptPasswordEncoder;
 
-    public Optional<User> findById(String userId){
+    public Optional<User> findById(UUID userId){
         return userRepository.findById(userId);
     }
 
@@ -30,7 +31,7 @@ public class UserService {
         userRepository.save(user);
     }
 
-    public Optional<User> updateUser(String id, UserDTO user) {
+    public Optional<User> updateUser(UUID id, UserDTO user) {
         return userRepository.findById(id)
                 .map(existingUser -> {
                     existingUser.setName(user.name());
@@ -40,7 +41,7 @@ public class UserService {
                 });
     }
 
-    public boolean deleteUser(String userId){
+    public boolean deleteUser(UUID userId){
         if (userRepository.existsById(userId)) {
             userRepository.deleteById(userId);
             return true;
@@ -68,7 +69,7 @@ public class UserService {
         return false;
     }
 
-    public User getReference(String id){
+    public User getReference(UUID id){
         return userRepository.getReferenceById(id);
     }
 

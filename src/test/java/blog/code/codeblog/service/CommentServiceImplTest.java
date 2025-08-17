@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,19 +41,22 @@ class CommentServiceImplTest {
     @DisplayName("Deve salvar comentário com sucesso e retornar DTO de resposta")
     void saveCommentShouldReturnCommentResponseDto() {
 
-        CommentDTO commentDTO = new CommentDTO("Conteúdo do comentário", "1", "1");
+        UUID userId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        CommentDTO commentDTO = new CommentDTO("Conteúdo do comentário", userId, postId);
         User mockUser = new User();
         mockUser.setName("Autor Teste");
 
         Post mockPost = new Post();
-        mockPost.setId("1");
+        mockPost.setId(postId);
 
-        when(userService.getReference(anyString())).thenReturn(mockUser);
-        when(postServiceImpl.getReference(anyString())).thenReturn(mockPost);
+        when(userService.getReference(any(UUID.class))).thenReturn(mockUser);
+        when(postServiceImpl.getReference(any(UUID.class))).thenReturn(mockPost);
 
+        UUID generatedId = UUID.randomUUID();
         when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> {
             Comment comment = invocation.getArgument(0);
-            comment.setId(1L);
+            comment.setId(generatedId);
             comment.setCreatedAt(LocalDateTime.now());
             return comment;
         });
@@ -60,21 +64,21 @@ class CommentServiceImplTest {
         CommentResponseDTO result = commentService.saveComment(commentDTO);
 
         assertNotNull(result);
-        assertEquals(1L, result.id());
+        assertEquals(generatedId, result.id());
         assertEquals("Conteúdo do comentário", result.content());
         assertEquals("Autor Teste", result.author() );
         assertNotNull(result.createdAt());
 
         verify(commentRepository, times(1)).save(any(Comment.class));
-        verify(postServiceImpl, times(1)).getReference(anyString());
-        verify(userService, times(1)).getReference(anyString());
+        verify(postServiceImpl, times(1)).getReference(any(UUID.class));
+        verify(userService, times(1)).getReference(any(UUID.class));
     }
 
     @Test
     @DisplayName("Deve deletar comentário ao receber ID válido")
     void deleteCommentShouldCallRepositoryDelete() {
 
-        Long commentId = 1L;
+        UUID commentId = UUID.randomUUID();
         doNothing().when(commentRepository).deleteById(commentId);
 
         // Act
@@ -88,7 +92,7 @@ class CommentServiceImplTest {
     @DisplayName("Deve atualizar comentário existente e retornar DTO atualizado")
     void updateCommentWhenExistsShouldUpdateAndReturnDto() {
 
-        Long commentId = 1L;
+        UUID commentId = UUID.randomUUID();
         CommentDTO updateDTO = new CommentDTO("Novo conteúdo", null, null);
 
         Comment existingComment = new Comment();
@@ -121,7 +125,7 @@ class CommentServiceImplTest {
     @DisplayName("Deve lançar exceção ao tentar atualizar comentário inexistente")
     void updateCommentWhenNotFoundShouldThrowException() {
 
-        Long commentId = 99L;
+        UUID commentId = UUID.randomUUID();
         CommentDTO updateDTO = new CommentDTO("Conteúdo", null, null);
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.empty());

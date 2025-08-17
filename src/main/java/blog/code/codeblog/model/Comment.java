@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 
 @Getter
@@ -20,8 +21,8 @@ import java.time.LocalDateTime;
 public class Comment  {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     public Comment(String content, User user, Post post, String autor) {
         this.content = content;
@@ -29,7 +30,6 @@ public class Comment  {
         this.post = post;
         this.autor = autor;
     }
-
     @NotBlank
     @NotNull
     @Lob

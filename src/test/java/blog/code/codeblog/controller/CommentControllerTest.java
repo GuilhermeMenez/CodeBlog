@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,9 +35,14 @@ class CommentControllerTest {
 
     @BeforeEach
     void setUp() {
-        commentDTO = new CommentDTO("Conteúdo do comentário", "1", "1");
-        commentResponseDTO = new CommentResponseDTO(1L, "Conteúdo do comentário", "Autor Teste", LocalDateTime.now());
+        UUID postId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        UUID commentId = UUID.randomUUID();
+
+        commentDTO = new CommentDTO("Conteúdo do comentário", postId, authorId);
+        commentResponseDTO = new CommentResponseDTO(commentId, "Conteúdo do comentário", "Autor Teste", LocalDateTime.now());
     }
+
 
     @Test
     @DisplayName("Deve criar um comentário com sucesso")
@@ -47,7 +53,7 @@ class CommentControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(1L, response.getBody().id());
+        assertEquals(commentResponseDTO.id(), response.getBody().id());
         assertEquals("Conteúdo do comentário", response.getBody().content());
         assertEquals("Autor Teste", response.getBody().author());
         assertNotNull(response.getBody().createdAt());
@@ -55,17 +61,18 @@ class CommentControllerTest {
         verify(commentService, times(1)).saveComment(any(CommentDTO.class));
     }
 
+
     @Test
     @DisplayName("Deve atualizar um comentário existente")
     void updateCommentShouldReturnUpdatedComment() {
-        Long commentId = 1L;
+        UUID commentId = UUID.randomUUID();
         when(commentService.updateComment(any(CommentDTO.class), eq(commentId))).thenReturn(commentResponseDTO);
 
         ResponseEntity<CommentResponseDTO> response = commentController.updateComment(commentId, commentDTO);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(1L, response.getBody().id());
+        assertEquals(commentResponseDTO.id(), response.getBody().id());
         assertEquals("Conteúdo do comentário", response.getBody().content());
         assertEquals("Autor Teste", response.getBody().author());
         assertNotNull(response.getBody().createdAt());
@@ -76,7 +83,7 @@ class CommentControllerTest {
     @Test
     @DisplayName("Deve retornar não encontrado ao tentar atualizar um comentário inexistente")
     void updateCommentWhenNotFoundShouldReturnNotFound() {
-        Long commentId = 99L;
+        UUID commentId = UUID.randomUUID();
         when(commentService.updateComment(any(CommentDTO.class), eq(commentId)))
                 .thenThrow(new EntityNotFoundException("Comment not found with id " + commentId));
 
@@ -92,7 +99,7 @@ class CommentControllerTest {
     @Test
     @DisplayName("Deve deletar um comentário existente")
     void deleteCommentShouldReturnOk() {
-        Long commentId = 1L;
+        UUID commentId = UUID.randomUUID();
         doNothing().when(commentService).deleteComment(commentId);
 
         ResponseEntity<?> response = commentController.deleteComment(commentId);
@@ -106,7 +113,7 @@ class CommentControllerTest {
     @Test
     @DisplayName("Deve lidar com erro ao deletar comentário inexistente")
     void deleteCommentWhenNotFoundShouldHandleException() {
-        Long commentId = 99L;
+        UUID commentId = UUID.randomUUID();
         doThrow(new EntityNotFoundException("Comment not found with id " + commentId))
                 .when(commentService).deleteComment(commentId);
 

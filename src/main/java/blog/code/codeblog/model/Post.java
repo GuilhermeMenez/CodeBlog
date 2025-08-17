@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -18,8 +19,8 @@ import lombok.Setter;
 @Table(name = "TB_POST")
 public class Post {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private String id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @NotBlank
     private String titulo;

@@ -6,6 +6,8 @@ import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import java.util.UUID;
+
 
 import java.util.*;
 
@@ -28,7 +30,8 @@ public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String  id;
+    @Column(columnDefinition = "uuid")
+    private UUID id;
 
     @Column(nullable = false, unique = true)
     private String login;
@@ -69,8 +72,8 @@ public class User implements UserDetails {
     @ManyToMany
     @JoinTable(
             name = "tb_user_followers",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "follower_id")
+            joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id", columnDefinition = "uuid"),
+            inverseJoinColumns = @JoinColumn(name = "follower_id", referencedColumnName = "id", columnDefinition = "uuid")
     )
     private Set<User> followers = new HashSet<>();
 

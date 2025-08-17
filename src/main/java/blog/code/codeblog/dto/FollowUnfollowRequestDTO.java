@@ -1,7 +1,8 @@
 package blog.code.codeblog.dto;
 
-import jakarta.validation.Valid;
 
-public record FollowUnfollowRequestDTO(@Valid String followerId, @Valid String followedId, boolean isFollow)
+import java.util.UUID;
+
+public record FollowUnfollowRequestDTO(UUID followerId, UUID followedId, boolean isFollow)
 {
 }

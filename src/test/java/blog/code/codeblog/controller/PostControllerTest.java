@@ -1,5 +1,6 @@
 package blog.code.codeblog.controller;
 
+import blog.code.codeblog.dto.PostDTO;
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.service.interfaces.PostService;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -35,14 +37,14 @@ class PostControllerTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         mockPost1 = new Post();
-        mockPost1.setId("1");
+        mockPost1.setId(UUID.randomUUID());
         mockPost1.setTitulo("Primeiro Post");
         mockPost1.setAutor("Autor 1");
         mockPost1.setTexto("Conteúdo do primeiro post");
         mockPost1.setData(LocalDate.of(2024, 7, 29));
 
         mockPost2 = new Post();
-        mockPost2.setId("2");
+        mockPost2.setId(UUID.randomUUID());
         mockPost2.setTitulo("Segundo Post");
         mockPost2.setAutor("Autor 2");
         mockPost2.setTexto("Conteúdo do segundo post");
@@ -54,7 +56,7 @@ class PostControllerTest {
     @Test
     @DisplayName("Deve retornar todos os posts de um usuário específico (mock)")
     void getAllUserPosts() {
-        String userId = "123";
+        UUID userId = UUID.randomUUID();
         when(postService.getAllUserPosts(userId)).thenReturn(mockPostList);
 
         List<Post> result = postController.getAllUserPosts(userId);
@@ -69,13 +71,14 @@ class PostControllerTest {
     @Test
     @DisplayName("Deve retornar um post pelo ID (mock)")
     void getPostsbyId() {
-        when(postService.findById("1")).thenReturn(Optional.of(mockPost1));
+        UUID postId = UUID.randomUUID();
+        when(postService.findById(postId)).thenReturn(Optional.of(mockPost1));
 
-        Post result = postController.getPostsbyId("1");
+        Post result = postController.getPostsbyId(postId);
 
         assertNotNull(result);
         assertEquals("Primeiro Post", result.getTitulo());
-        verify(postService, times(1)).findById("1");
+        verify(postService, times(1)).findById(postId);
     }
 
     @Test
@@ -94,43 +97,46 @@ class PostControllerTest {
     @Test
     @DisplayName("Deve atualizar um post (mock)")
     void updatePost() {
-        Post novoPost = new Post();
-        novoPost.setTitulo("Novo Título");
-        novoPost.setAutor("Novo Autor");
-        novoPost.setTexto("Novo Texto");
-        novoPost.setData(LocalDate.of(2024, 7, 30));
+        UUID postId = UUID.randomUUID();
+        PostDTO novoPost = new PostDTO("Novo Título", "Novo Texto");
 
-        when(postService.findById("1")).thenReturn(Optional.of(mockPost1));
-        when(postService.save(any(Post.class))).thenReturn(mockPost1);
+        Post atualizadoMock = new Post();
+        atualizadoMock.setId(postId);
+        atualizadoMock.setTitulo("Novo Título");
+        atualizadoMock.setTexto("Novo Texto");
 
-        ResponseEntity<?> response = postController.updatePost("1", novoPost);
+        when(postService.updatePost(eq(postId), eq(novoPost))).thenReturn(Optional.of(atualizadoMock));
+
+        ResponseEntity<?> response = postController.updatePost(postId, novoPost);
 
         assertEquals(200, response.getStatusCodeValue());
         Post atualizado = (Post) response.getBody();
         assertNotNull(atualizado);
         assertEquals("Novo Título", atualizado.getTitulo());
-        assertEquals("Novo Autor", atualizado.getAutor());
-        verify(postService, times(1)).save(mockPost1);
+        assertEquals("Novo Texto", atualizado.getTexto());
+        verify(postService, times(1)).updatePost(postId, novoPost);
+        verify(postService, never()).save(any(Post.class));
+        verify(postService, never()).findById(any());
     }
 
     @Test
     @DisplayName("Deve deletar um post (mock)")
     void deletePost() {
-        when(postService.findById("1")).thenReturn(Optional.of(mockPost1));
-        doNothing().when(postService).delete("1");
+        UUID postId = UUID.randomUUID();
+        doNothing().when(postService).deletePost(postId);
 
-        ResponseEntity<?> response = postController.deletePost("1");
+        ResponseEntity<?> response = postController.deletePost(postId);
 
         assertEquals(200, response.getStatusCodeValue());
-        verify(postService, times(1)).findById("1");
-        verify(postService, times(1)).delete("1");
+        assertNull(response.getBody());
+        verify(postService, times(1)).deletePost(postId);
+        verify(postService, never()).findById(any());
     }
 
     @Test
     @DisplayName("Deve retornar feed balanceado para um usuário específico (mock)")
     void getBalancedFeed_Controller() {
-        // Arrange
-        String userId = "123";
+        UUID userId = UUID.randomUUID();
         int page = 0;
         int size = 3;
 

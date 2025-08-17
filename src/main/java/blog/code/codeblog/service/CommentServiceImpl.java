@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -38,12 +39,12 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public void deleteComment(Long id) {
+    public void deleteComment(UUID id) {
         commentRepository.deleteById(id);
     }
 
     @Override
-    public CommentResponseDTO updateComment(CommentDTO comment, long commentId) {
+    public CommentResponseDTO updateComment(CommentDTO comment, UUID commentId) {
         return commentRepository.findById(commentId)
                 .map(existingComment -> {
                     existingComment.setContent(comment.content());

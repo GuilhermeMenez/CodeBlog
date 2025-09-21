@@ -1,7 +1,7 @@
 package blog.code.codeblog.service;
 
 
-import blog.code.codeblog.dto.UserDTO;
+import blog.code.codeblog.model.User;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 
+
 @Service
 public class TokenService {
 
@@ -20,12 +21,14 @@ public class TokenService {
     private String secret;
 
 
-    public String generateToken(UserDTO user){
+    public String generateToken(User user){
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
             return JWT.create()
                     .withIssuer("CodeBlog")
-                    .withSubject(user.email())
+                    .withSubject(user.getLogin())
+                    .withClaim("id", user.getId().toString())
+                    .withClaim("name", user.getName())
                     .withExpiresAt(gererateExpirationDate())
                     .sign(algorithm);
         }catch (Exception e){
@@ -49,12 +52,14 @@ public class TokenService {
     }
 }
 
-
     private Instant gererateExpirationDate() {
         return LocalDateTime.now()
                 .plusHours(2)
                 .atZone(ZoneId.of("America/Sao_Paulo"))
                 .toInstant();
+    }
+
+    private void revokeToken(String token){
 
     }
 }

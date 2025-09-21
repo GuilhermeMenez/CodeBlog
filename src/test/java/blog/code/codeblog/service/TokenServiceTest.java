@@ -2,10 +2,13 @@ package blog.code.codeblog.service;
 
 import blog.code.codeblog.dto.UserDTO;
 import blog.code.codeblog.enums.UserRoles;
+import blog.code.codeblog.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -26,7 +29,10 @@ class TokenServiceTest {
     @Test
     @DisplayName("Deve gerar um token válido para o usuário")
     void generateValidToken() {
-        String token = tokenService.generateToken(validUser);
+        User validUserModel = new User(validUser.name(), validUser.email(), validUser.password(), validUser.role());
+        validUserModel.setId(UUID.randomUUID());
+
+        String token = tokenService.generateToken(validUserModel);
         assertNotNull(token);
         assertFalse(token.isEmpty());
 
@@ -38,11 +44,11 @@ class TokenServiceTest {
     @DisplayName("Deve lançar uma exceção ao tentar gerar token com secret inválido")
     void validateTokenWithInvalidSecret() {
         TokenService ts = new TokenService();
-        UserDTO user = new UserDTO("nome", "email@email.com", "senha", UserRoles.ADMIN);
+        User userModel = new User("nome", "email@email.com", "senha", UserRoles.ADMIN); // Conversão explícita
         ReflectionTestUtils.setField(ts, "secret", null);
 
         Exception exception = assertThrows(RuntimeException.class, () -> {
-            ts.generateToken(user);
+            ts.generateToken(userModel); // Passa User
         });
         assertNotNull(exception.getCause());
         assertTrue(exception.getMessage().contains("Erro ao gerar token JWT"));
@@ -51,10 +57,25 @@ class TokenServiceTest {
     @Test
     @DisplayName("Deve validar o subject do token gerado")
     void ValidateTokenSubject() {
-        String token = tokenService.generateToken(validUser);
-        String subject = tokenService.validateToken(token);
-        assertEquals(validUser.email(), subject);
+
+        User validUserModel = new User(
+                validUser.name(),
+                validUser.email(),
+                validUser.password(),
+                validUser.role()
+        );
+        validUserModel.setId(UUID.randomUUID());
+
+        String token = tokenService.generateToken(validUserModel);
+
+        assertNotNull(token);
+        assertFalse(token.isEmpty());
+
+        String result = tokenService.validateToken(token);
+        assertEquals(validUser.email(), result);
+
     }
+
 
     @Test
     @DisplayName("Deve retornar vazio para token com issuer inválido")
@@ -62,9 +83,10 @@ class TokenServiceTest {
         TokenService tokenService = new TokenService();
         ReflectionTestUtils.setField(tokenService, "secret", SECRET);
 
+        User validUserModel = new User(validUser.name(), validUser.email(), validUser.password(), validUser.role());
         String tokenOutroIssuer = com.auth0.jwt.JWT.create()
                 .withIssuer("OutroIssuer")
-                .withSubject(validUser.email())
+                .withSubject(validUserModel.getLogin()) // Usa o modelo User
                 .withExpiresAt(java.time.LocalDateTime.now().plusHours(2)
                         .atZone(java.time.ZoneId.of("America/Sao_Paulo"))
                         .toInstant())
@@ -77,7 +99,11 @@ class TokenServiceTest {
     @Test
     @DisplayName("Deve retornar vazio para token alterado")
     void validateAlteredToken() {
-        String token = tokenService.generateToken(validUser);
+
+        User validUserModel = new User(validUser.name(), validUser.email(), validUser.password(), validUser.role());
+        validUserModel.setId(UUID.randomUUID());
+
+        String token = tokenService.generateToken(validUserModel);
         String alteredToken = token + "abc";
 
         String result = tokenService.validateToken(alteredToken);
@@ -87,9 +113,10 @@ class TokenServiceTest {
     @Test
     @DisplayName("Deve retornar vazio para token expirado")
     void validateExpiredToken() {
+        User validUserModel = new User(validUser.name(), validUser.email(), validUser.password(), validUser.role());
         String expiredToken = com.auth0.jwt.JWT.create()
                 .withIssuer("CodeBlog")
-                .withSubject(validUser.email())
+                .withSubject(validUserModel.getLogin()) // Usa o modelo User
                 .withExpiresAt(java.time.LocalDateTime.now().minusHours(1)
                         .atZone(java.time.ZoneId.of("America/Sao_Paulo"))
                         .toInstant())
@@ -109,8 +136,10 @@ class TokenServiceTest {
     @Test
     @DisplayName("Deve gerar tokens idênticos para o mesmo usuário")
     void generateEqualTokens() {
-        String token1 = tokenService.generateToken(validUser);
-        String token2 = tokenService.generateToken(validUser);
+        User validUserModel = new User(validUser.name(), validUser.email(), validUser.password(), validUser.role());
+        validUserModel.setId(UUID.randomUUID());
+        String token1 = tokenService.generateToken(validUserModel);
+        String token2 = tokenService.generateToken(validUserModel);
 
         assertNotNull(token1);
         assertNotNull(token2);

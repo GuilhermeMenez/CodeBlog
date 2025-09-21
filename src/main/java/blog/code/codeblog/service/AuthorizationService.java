@@ -55,8 +55,7 @@ public class AuthorizationService implements UserDetailsService {
         var UsernamePassword = new UsernamePasswordAuthenticationToken(authenticationDTO.login(), authenticationDTO.password());
         var auth = authenticationManager.authenticate(UsernamePassword);
         User user = (User) auth.getPrincipal();
-        UserDTO userDTO = new UserDTO(user.getName(), user.getLogin(), user.getPassword(), user.getRole());
-        var token = tokenService.generateToken(userDTO);
+        var token = tokenService.generateToken(user);
 
         return ResponseEntity.ok(new LoginResponseDTO(token));
     }

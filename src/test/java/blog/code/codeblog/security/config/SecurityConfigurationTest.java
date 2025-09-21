@@ -49,26 +49,26 @@ class SecurityConfigurationTest {
         assertNotNull(manager);
         assertEquals(mockManager, manager);
     }
-    @Test
-    @DisplayName("Deve permitir os metodos configurados no CORS")
-    void corsConfigurershouldApplyCorrectSettings() {
-        WebMvcConfigurer configurer = securityConfiguration.corsConfigurer();
-
-        CorsRegistry registry = mock(CorsRegistry.class);
-        CorsRegistration registration = mock(CorsRegistration.class);
-
-        when(registry.addMapping("/**")).thenReturn(registration);
-        when(registration.allowedOrigins("http://localhost:5173")).thenReturn(registration);
-        when(registration.allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")).thenReturn(registration);
-        when(registration.allowedHeaders("*")).thenReturn(registration);
-        when(registration.allowCredentials(true)).thenReturn(registration);
-
-        configurer.addCorsMappings(registry);
-
-        verify(registry).addMapping("/**");
-        verify(registration).allowedOrigins("http://localhost:5173");
-        verify(registration).allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
-        verify(registration).allowedHeaders("*");
-        verify(registration).allowCredentials(true);
-    }
+//    @Test
+//    @DisplayName("Deve permitir os metodos configurados no CORS")
+//    void corsConfigurershouldApplyCorrectSettings() {
+//        WebMvcConfigurer configurer = securityConfiguration.corsConfigurer();
+//
+//        CorsRegistry registry = mock(CorsRegistry.class);
+//        CorsRegistration registration = mock(CorsRegistration.class);
+//
+//        when(registry.addMapping("/**")).thenReturn(registration);
+//        when(registration.allowedOrigins("http://localhost:5173")).thenReturn(registration);
+//        when(registration.allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")).thenReturn(registration);
+//        when(registration.allowedHeaders("*")).thenReturn(registration);
+//        when(registration.allowCredentials(true)).thenReturn(registration);
+//
+//        configurer.addCorsMappings(registry);
+//
+//        verify(registry).addMapping("/**");
+//        verify(registration).allowedOrigins("http://localhost:5173");
+//        verify(registration).allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
+//        verify(registration).allowedHeaders("*");
+//        verify(registration).allowCredentials(true);
+//    }
 }

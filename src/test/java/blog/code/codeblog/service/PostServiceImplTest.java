@@ -1,5 +1,7 @@
 package blog.code.codeblog.service;
 
+import blog.code.codeblog.dto.PostDTO;
+import blog.code.codeblog.dto.PostRequestDTO;
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.repository.PostRepository;
@@ -11,6 +13,7 @@ import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.UUID;
 
@@ -59,14 +62,34 @@ class PostServiceImplTest {
     @Test
     @DisplayName("Deve salvar um novo post com sucesso")
     void save() {
-        Post post = new Post();
-        when(postRepository.save(post)).thenReturn(post);
+        // Arrange
+        UUID userId = UUID.randomUUID();
+        User mockUser = new User();
+        mockUser.setId(userId);
 
-        Post saved = postService.save(post);
+        PostRequestDTO request = new PostRequestDTO("Título Teste", "Conteúdo Teste", userId);
 
-        assertNotNull(saved);
-        verify(postRepository).save(post);
+        Post mockPost = new Post();
+        mockPost.setId(UUID.randomUUID());
+        mockPost.setTitle(request.title());
+        mockPost.setContent(request.content());
+        mockPost.setDate(LocalDate.now());
+        mockPost.setUser(mockUser);
+
+        when(userRepository.getReferenceById(userId)).thenReturn(mockUser);
+        when(postRepository.save(any(Post.class))).thenReturn(mockPost);
+
+        // Act
+        String result = postService.save(request);
+
+        // Assert
+        assertEquals(mockPost.getId().toString(), result);
+        verify(postRepository).save(any(Post.class));
+        verify(userRepository).getReferenceById(userId);
+
     }
+
+
 
     @Test
     @DisplayName("Deve deletar um post pelo ID")
@@ -82,23 +105,21 @@ class PostServiceImplTest {
     void getAllUserPostsUserFound() {
         UUID userId = UUID.randomUUID();
         Post post1 = new Post();
-        post1.setTitulo("Primeiro Post");
+        post1.setTitle("Primeiro Post");
         Post post2 = new Post();
-        post2.setTitulo("Segundo Post");
+        post2.setTitle("Segundo Post");
 
         User mockUser = new User();
         mockUser.setPosts(List.of(post1, post2));
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
 
-        // Act
         List<Post> result = postService.getAllUserPosts(userId);
 
-        // Assert
         assertNotNull(result);
         assertEquals(2, result.size());
-        assertEquals("Primeiro Post", result.get(0).getTitulo());
-        assertEquals("Segundo Post", result.get(1).getTitulo());
+        assertEquals("Primeiro Post", result.get(0).getTitle());
+        assertEquals("Segundo Post", result.get(1).getTitle());
 
         verify(userRepository, times(1)).findById(userId);
     }
@@ -106,11 +127,9 @@ class PostServiceImplTest {
     @Test
     @DisplayName("Deve lançar exceção quando usuário não for encontrado")
     void getAllUserPostsUserNotFound() {
-        // Arrange
         UUID userId = UUID.randomUUID();
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        // Act & Assert
         RuntimeException exception = assertThrows(RuntimeException.class, () -> postService.getAllUserPosts(userId));
 
         assertEquals("usuário não encontrado", exception.getMessage());
@@ -120,27 +139,25 @@ class PostServiceImplTest {
     @Test
     @DisplayName("Deve retornar feed balanceado (70% recentes e 30% aleatórios)")
     void getBalancedFeed_UserFound() {
-        // Arrange
         UUID userId = UUID.randomUUID();
         User mockUser = new User();
         mockUser.setId(userId);
 
-        // Simula os usuários seguidos
         User followed1 = new User();
         followed1.setId(UUID.randomUUID());
+
         User followed2 = new User();
         followed2.setId(UUID.randomUUID());
+
         mockUser.setFollowing(Set.of(followed1, followed2));
 
-        // Simula posts recentes
         Post recent1 = new Post();
-        recent1.setTitulo("Post Recente 1");
+        recent1.setTitle("Post Recente 1");
         Post recent2 = new Post();
-        recent2.setTitulo("Post Recente 2");
+        recent2.setTitle("Post Recente 2");
 
-        // Simula posts aleatórios
         Post random1 = new Post();
-        random1.setTitulo("Post Aleatório 1");
+        random1.setTitle("Post Aleatório 1");
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
         when(postRepository.findRecentPosts(eq(mockUser.getFollowing()), any(Pageable.class)))
@@ -148,14 +165,12 @@ class PostServiceImplTest {
         when(postRepository.findRandomPosts(eq(mockUser.getFollowing()), any(Pageable.class)))
                 .thenReturn(List.of(random1));
 
-        // Act
         List<Post> feed = postService.getBalancedFeed(userId, 0, 3);
 
-        // Assert
         assertNotNull(feed);
         assertEquals(3, feed.size());
-        assertTrue(feed.stream().anyMatch(p -> p.getTitulo().contains("Recente")));
-        assertTrue(feed.stream().anyMatch(p -> p.getTitulo().contains("Aleatório")));
+        assertTrue(feed.stream().anyMatch(p -> p.getTitle().contains("Recente")));
+        assertTrue(feed.stream().anyMatch(p -> p.getTitle().contains("Aleatório")));
 
         verify(userRepository, times(1)).findById(userId);
         verify(postRepository, times(1)).findRecentPosts(eq(mockUser.getFollowing()), any(Pageable.class));
@@ -165,11 +180,9 @@ class PostServiceImplTest {
     @Test
     @DisplayName("Deve lançar exceção quando usuário não for encontrado no feed")
     void getBalancedFeed_UserNotFound() {
-        // Arrange
         UUID userId = UUID.randomUUID();
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        // Act & Assert
         RuntimeException exception = assertThrows(RuntimeException.class, () -> postService.getBalancedFeed(userId, 0, 3));
 
         assertEquals("Usuário não encontrado", exception.getMessage());

@@ -20,9 +20,6 @@ import java.util.UUID;
 @Table(name = "TB_COMMENT")
 public class Comment  {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
 
     public Comment(String content, User user, Post post, String autor) {
         this.content = content;
@@ -30,6 +27,11 @@ public class Comment  {
         this.post = post;
         this.autor = autor;
     }
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
     @NotBlank
     @NotNull
     @Lob

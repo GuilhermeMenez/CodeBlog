@@ -23,17 +23,17 @@ public class Post {
     private UUID id;
 
     @NotBlank
-    private String titulo;
+    private String title;
 
     @NotBlank
     @Lob
-    private String texto;
+    private String content;
 
-    private String autor;
+    private String author;
 
     @NotNull
     @JsonFormat(pattern = "dd/MM/yyyy")
-    private LocalDate data;
+    private LocalDate date;
 
     @ManyToOne
     @JoinColumn(name = "user_id")

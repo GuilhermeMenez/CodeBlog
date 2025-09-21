@@ -21,12 +21,10 @@ public class AutheticationController {
      return ResponseEntity.ok(authorizationService.register(user));
     }
 
-
-    @RequestMapping("/login")
+    @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(@RequestBody @Valid AuthenticationDTO authenticationDTO){
       return authorizationService.login(authenticationDTO);
     }
-
 
 
 }

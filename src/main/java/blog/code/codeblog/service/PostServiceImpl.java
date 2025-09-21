@@ -1,6 +1,7 @@
 package blog.code.codeblog.service;
 
 import blog.code.codeblog.dto.PostDTO;
+import blog.code.codeblog.dto.PostRequestDTO;
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.repository.PostRepository;
@@ -34,8 +35,14 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public Post save(Post post) {
-        return postRepository.save(post);
+    public String save(PostRequestDTO post) {
+        Post newPost = new Post();
+        newPost.setTitle(post.title());
+        newPost.setContent(post.content());
+        newPost.setDate(LocalDate.now());
+        newPost.setUser(userRepository.getReferenceById(post.authorId()));
+        Post savedPost = postRepository.save(newPost);
+        return savedPost.getId().toString();
     }
 
     @Override
@@ -44,6 +51,7 @@ public class PostServiceImpl implements PostService {
     }
     @Override
     public List<Post> getBalancedFeed(UUID userId, int page, int size) {
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
         Set<User> following = user.getFollowing();
@@ -73,15 +81,17 @@ public class PostServiceImpl implements PostService {
                .orElseThrow(() -> new RuntimeException("usuário não encontrado"));
     }
     @Override
-    public Optional<Post> updatePost(UUID postId, PostDTO updatedPost){
-        return findById(postId)
-                .map(existingPost ->{
-                    existingPost.setTitulo(updatedPost.title());
-                    existingPost.setTexto(updatedPost.content());
-                    existingPost.setData(LocalDate.now());
-                    return postRepository.save(existingPost);
-                });
+    public void updatePost(UUID postId, PostDTO updatedPost) {
+        findById(postId).ifPresentOrElse(existingPost -> {
+            existingPost.setTitle(updatedPost.title());
+            existingPost.setContent(updatedPost.content());
+            existingPost.setDate(LocalDate.now());
+            postRepository.save(existingPost);
+        }, () -> {
+            throw new RuntimeException("Post não encontrado");
+        });
     }
+
 
     public Post getReference(UUID  id){
         return postRepository.getReferenceById(id);

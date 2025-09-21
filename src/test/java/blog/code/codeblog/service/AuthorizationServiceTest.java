@@ -55,7 +55,7 @@ class AuthorizationServiceTest {
         when(userService.findByLogin(userDTO.email())).thenReturn(null);
         when(passwordEncoder.encode(userDTO.password())).thenReturn(encodedPassword);
         doNothing().when(userService).saveUser(any(User.class));
-        when(tokenService.generateToken(any(UserDTO.class))).thenReturn(token);
+        when(tokenService.generateToken(any(User.class))).thenReturn(token);
 
         Authentication authentication = mock(Authentication.class);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(authentication);
@@ -69,7 +69,7 @@ class AuthorizationServiceTest {
         verify(userService).findByLogin(userDTO.email());
         verify(passwordEncoder).encode(userDTO.password());
         verify(userService).saveUser(any(User.class));
-        verify(tokenService).generateToken(any(UserDTO.class));
+        verify(tokenService).generateToken(any(User.class));
     }
 
     @Test
@@ -85,6 +85,6 @@ class AuthorizationServiceTest {
 
         verify(userService, never()).saveUser(any(User.class));
         verify(authenticationManager, never()).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(tokenService, never()).generateToken(any(UserDTO.class));
+        verify(tokenService, never()).generateToken(any(User.class));
     }
 }

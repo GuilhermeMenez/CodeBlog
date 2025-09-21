@@ -14,9 +14,9 @@ import java.util.UUID;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, UUID> {
-    @Query("SELECT p FROM Post p WHERE p.autor IN :following ORDER BY p.data DESC")
+    @Query("SELECT p FROM Post p WHERE p.author IN :following ORDER BY p.date DESC")
     List<Post> findRecentPosts(@Param("following") Set<User> following, Pageable pageable);
 
-    @Query("SELECT p FROM Post p WHERE p.autor IN :following ORDER BY function('RANDOM')")
+    @Query("SELECT p FROM Post p WHERE p.author IN :following ORDER BY function('RANDOM')")
     List<Post> findRandomPosts(@Param("following") Set<User> following, Pageable pageable);
 }

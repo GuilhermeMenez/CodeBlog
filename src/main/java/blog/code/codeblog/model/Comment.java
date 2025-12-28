@@ -34,7 +34,6 @@ public class Comment  {
 
     @NotBlank
     @NotNull
-    @Lob
     private String content;
 
     private String autor;

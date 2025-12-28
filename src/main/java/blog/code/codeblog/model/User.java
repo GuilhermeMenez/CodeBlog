@@ -27,6 +27,12 @@ public class User implements UserDetails {
         this.password = password;
         this.role = role;
     }
+    public User(String name, String login, String password) {
+        this.name = name;
+        this.login = login;
+        this.password = password;
+
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -82,5 +88,8 @@ public class User implements UserDetails {
 
     @OneToMany(mappedBy = "user")
     private List<Post> posts;
+
+    // TODO: Replace raw favorite post UUIDs with a proper JPA mapping (e.g., @ManyToMany to Post)
+    private List<UUID> favoritePosts = new ArrayList<>();
 
 }

@@ -1,7 +1,6 @@
 package blog.code.codeblog.repository;
 
 import blog.code.codeblog.model.User;
-import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,13 +38,22 @@ class UserRepositoryTest {
     @Test
     @DisplayName("Não deve encontrar usuário por login")
     void notfindByLogin() {
-        User user = new User();
-        user.setLogin("usuario_teste");
-        user.setPassword("senhaTeste");
-        user.setName("Usuário de Teste");
-
+        // Não salva o usuário antes da busca
         Optional<User> resultado = Optional.ofNullable(userRepository.findByLogin("usuario_teste"));
-
         assertTrue(resultado.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Deve persistir e buscar usuário por ID")
+    void persistAndFindById() {
+        User user = new User();
+        user.setLogin("usuario_id");
+        user.setPassword("senhaId");
+        user.setName("Usuário ID");
+        User saved = userRepository.save(user);
+        assertNotNull(saved.getId());
+        User found = userRepository.findById(saved.getId()).orElse(null);
+        assertNotNull(found);
+        assertEquals("usuario_id", found.getLogin());
     }
 }

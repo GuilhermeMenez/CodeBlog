@@ -1,5 +1,6 @@
 package blog.code.codeblog.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -26,7 +27,6 @@ public class Post {
     private String title;
 
     @NotBlank
-    @Lob
     private String content;
 
     private String author;

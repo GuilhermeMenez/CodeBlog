@@ -1,17 +1,20 @@
 package blog.code.codeblog.controller;
 
-import blog.code.codeblog.dto.FollowUnfollowRequestDTO;
-import blog.code.codeblog.dto.UserDTO;
+import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
+import blog.code.codeblog.dto.follow.FollowUnfollowRequestDTO;
+import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.service.UserService;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-
+@Slf4j
 @RestController
 public class UserController {
 
@@ -19,35 +22,36 @@ public class UserController {
     UserService userService;
 
     @DeleteMapping("/deleteUser/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable("id") UUID userId) {
-      if (userService.deleteUser(userId)) {
-          return ResponseEntity.ok().build();
-      }
-      return ResponseEntity.notFound().build();
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteUser(@PathVariable("id") UUID userId) {
+        log.info("Delete user request received for user {}", userId);
+      userService.deleteUser(userId);
+
     }
 
     @GetMapping("/user/{id}")
     public ResponseEntity<User> findUserById(@PathVariable("id") UUID id) {
+        log.info("Get user by id request received for user {}", id);
         return userService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/user/edit/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable("id") UUID id, @RequestBody @Valid UserDTO user) {
-        return userService.updateUser(id, user)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    @ResponseStatus(HttpStatus.OK)
+    public UpdateUserResponseDTO updateUser(@PathVariable("id") UUID id, @RequestBody @Valid UpdateUserRequestDTO user) {
+        log.info("Update user request received for user {}", id);
+        return userService.updateUser(id, user);
     }
 
     @PostMapping("/follow")
     public ResponseEntity<?> follow(@RequestBody @Valid FollowUnfollowRequestDTO dto) {
-        return processFollowAction(dto, true, "Usuários não podem seguir a si mesmos");
+        return processFollowAction(dto, true, "Users cannot follow themselves");
     }
 
     @PostMapping("/unfollow")
     public ResponseEntity<?> unfollow(@RequestBody @Valid FollowUnfollowRequestDTO dto) {
-        return processFollowAction(dto, false, "Usuários não podem deixar de seguir a si mesmos");
+        return processFollowAction(dto, false, "Users cannot unfollow themselves");
     }
 
     private ResponseEntity<?> processFollowAction(FollowUnfollowRequestDTO dto, boolean isFollow, String selfActionMessage) {
@@ -56,6 +60,6 @@ public class UserController {
         }
         if (userService.handleFollowUnfollow(dto, isFollow))
             return ResponseEntity.ok().build();
-        return ResponseEntity.badRequest().body("Usuário não encontrado");
+        return ResponseEntity.badRequest().body("User not found");
     }
 }

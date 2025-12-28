@@ -1,4 +1,4 @@
-package blog.code.codeblog.dto;
+package blog.code.codeblog.dto.comment;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

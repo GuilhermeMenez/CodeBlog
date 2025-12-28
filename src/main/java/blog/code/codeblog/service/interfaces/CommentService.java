@@ -1,7 +1,7 @@
 package blog.code.codeblog.service.interfaces;
 
-import blog.code.codeblog.dto.CommentDTO;
-import blog.code.codeblog.dto.CommentResponseDTO;
+import blog.code.codeblog.dto.post.CommentDTO;
+import blog.code.codeblog.dto.comment.CommentResponseDTO;
 
 import java.util.UUID;
 

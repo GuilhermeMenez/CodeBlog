@@ -1,8 +1,7 @@
 package blog.code.codeblog.controller;
 
-import blog.code.codeblog.dto.FollowUnfollowRequestDTO;
-import blog.code.codeblog.dto.UserDTO;
-import blog.code.codeblog.enums.UserRoles;
+import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
+import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +18,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,8 +30,6 @@ class UserControllerTest {
     private UserController userController;
 
     private User testUser;
-    private UserDTO testUserDTO;
-    private FollowUnfollowRequestDTO testFollowDTO;
 
     @BeforeEach
     void setUp() {
@@ -41,40 +37,20 @@ class UserControllerTest {
         UUID userId = UUID.randomUUID();
         testUser.setId(userId);
         testUser.setName("testuser");
-
-        testUserDTO = new UserDTO("updateduser", "test@example.com", "newpassword", UserRoles.COSTUMER);
-
-        UUID followerId = UUID.randomUUID();
-        UUID followedId = UUID.randomUUID();
-        testFollowDTO = new FollowUnfollowRequestDTO(followerId, followedId, true);
     }
 
     @Test
-    @DisplayName("Testa se o usuário existente foi deletado")
+    @DisplayName("Should return OK when deleting an existing user")
     void deleteUserShouldReturnOkWhenUserExists() {
         UUID id = testUser.getId();
-        when(userService.deleteUser(id)).thenReturn(true);
+        doNothing().when(userService).deleteUser(id);
 
-        ResponseEntity<?> response = userController.deleteUser(id);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertDoesNotThrow(() -> userController.deleteUser(id));
         verify(userService, times(1)).deleteUser(id);
     }
 
     @Test
-    @DisplayName("Testa se e possivel deletar um usuario inexistente")
-    void deleteUserShouldReturnNotFoundWhenUserDoesNotExist() {
-        UUID id = UUID.randomUUID();
-        when(userService.deleteUser(id)).thenReturn(false);
-
-        ResponseEntity<?> response = userController.deleteUser(id);
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        verify(userService, times(1)).deleteUser(id);
-    }
-
-    @Test
-    @DisplayName("Testa buscar por id, um usuário existente")
+    @DisplayName("Should return user when user exists by id")
     void findUserByIdShouldReturnUserWhenUserExists() {
         UUID id = testUser.getId();
         when(userService.findById(id)).thenReturn(Optional.of(testUser));
@@ -88,7 +64,7 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("Testa buscar por id, um usuário inexistente ")
+    @DisplayName("Should return NOT_FOUND when user does not exist by id")
     void findUserByIdShouldReturnNotFoundWhenUserDoesNotExist() {
         UUID id = UUID.randomUUID();
         when(userService.findById(id)).thenReturn(Optional.empty());
@@ -101,106 +77,19 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("Testa buscar por id, um usuário existente alterado")
+    @DisplayName("Should update user and return updated user")
     void updateUserShouldReturnUpdatedUserWhenUserExists() {
         UUID id = testUser.getId();
-        User updatedUser = new User();
-        updatedUser.setId(id);
-        updatedUser.setName("updateduser");
+        UpdateUserRequestDTO updateDTO = new UpdateUserRequestDTO("updateduser", "test@example.com", "newpassword");
+        UpdateUserResponseDTO updatedResponse = new UpdateUserResponseDTO("updateduser", "test@example.com");
+        when(userService.updateUser(id, updateDTO)).thenReturn(updatedResponse);
 
-        when(userService.updateUser(id, testUserDTO)).thenReturn(Optional.of(updatedUser));
+        UpdateUserResponseDTO response = userController.updateUser(id, updateDTO);
 
-        ResponseEntity<User> response = userController.updateUser(id, testUserDTO);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals("updateduser", response.getBody().getName());
-        verify(userService, times(1)).updateUser(id, testUserDTO);
-    }
-
-    @Test
-    @DisplayName("Tenta atualizar um usuario inexistente")
-    void updateUserShouldReturnNotFoundWhenUserDoesNotExist() {
-        UUID id = UUID.randomUUID();
-        when(userService.updateUser(id, testUserDTO)).thenReturn(Optional.empty());
-
-        ResponseEntity<User> response = userController.updateUser(id, testUserDTO);
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertNull(response.getBody());
-        verify(userService, times(1)).updateUser(id, testUserDTO);
-    }
-
-    @Test
-    @DisplayName("Testa seguir um usurio")
-    void followShouldReturnOkWhenValidRequest() {
-        when(userService.handleFollowUnfollow(testFollowDTO, true)).thenReturn(true);
-
-        ResponseEntity<?> response = userController.follow(testFollowDTO);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(userService, times(1)).handleFollowUnfollow(testFollowDTO, true);
-    }
-
-    @Test
-    @DisplayName("Testa impedir o autofollow")
-    void followShouldReturnBadRequestWhenSelfFollow() {
-        UUID sameId = UUID.randomUUID();
-        FollowUnfollowRequestDTO selfFollowDTO = new FollowUnfollowRequestDTO(sameId, sameId, true);
-
-        ResponseEntity<?> response = userController.follow(selfFollowDTO);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Usuários não podem seguir a si mesmos", response.getBody());
-        verify(userService, never()).handleFollowUnfollow(any(), anyBoolean());
-    }
-
-    @Test
-    @DisplayName("Testa seguir um usuario inexistente")
-    void followShouldReturnBadRequestWhenUserNotFound() {
-        when(userService.handleFollowUnfollow(testFollowDTO, true)).thenReturn(false);
-
-        ResponseEntity<?> response = userController.follow(testFollowDTO);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Usuário não encontrado", response.getBody());
-        verify(userService, times(1)).handleFollowUnfollow(testFollowDTO, true);
-    }
-
-    @Test
-    @DisplayName("Testa o unfollow")
-    void unfollowShouldReturnOkWhenValidRequest() {
-        when(userService.handleFollowUnfollow(testFollowDTO, false)).thenReturn(true);
-
-        ResponseEntity<?> response = userController.unfollow(testFollowDTO);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        verify(userService, times(1)).handleFollowUnfollow(testFollowDTO, false);
-    }
-
-    @Test
-    @DisplayName("Testa impedir o autounfollow")
-    void unfollowShouldReturnBadRequestWhenSelfUnfollow() {
-        UUID sameId = UUID.randomUUID();
-        FollowUnfollowRequestDTO selfUnfollowDTO = new FollowUnfollowRequestDTO(sameId, sameId, false);
-
-        ResponseEntity<?> response = userController.unfollow(selfUnfollowDTO);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Usuários não podem deixar de seguir a si mesmos", response.getBody());
-        verify(userService, never()).handleFollowUnfollow(any(), anyBoolean());
-    }
-
-    @Test
-    @DisplayName("Testa o autofollow em um usuário inexistente ")
-    void unfollowShouldReturnBadRequestWhenUserNotFound() {
-        when(userService.handleFollowUnfollow(testFollowDTO, false)).thenReturn(false);
-
-        ResponseEntity<?> response = userController.unfollow(testFollowDTO);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Usuário não encontrado", response.getBody());
-        verify(userService, times(1)).handleFollowUnfollow(testFollowDTO, false);
+        assertNotNull(response);
+        assertEquals("updateduser", response.name());
+        assertEquals("test@example.com", response.email());
+        verify(userService, times(1)).updateUser(id, updateDTO);
     }
 
 }

@@ -1,157 +1,165 @@
 package blog.code.codeblog.service;
 
-import blog.code.codeblog.dto.UserDTO;
 import blog.code.codeblog.enums.UserRoles;
 import blog.code.codeblog.model.User;
+import com.auth0.jwt.exceptions.JWTVerificationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.test.util.ReflectionTestUtils;
-
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
-
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class TokenServiceTest {
-
+    @InjectMocks
     private TokenService tokenService;
-    private static final String SECRET = "meuSecretDeTeste";
-    private UserDTO validUser;
+    @Mock
+    private RedisTemplate<String, Object> redisTemplate;
+    private static final String SECRET = "testSecret";
+    private User validUser;
 
     @BeforeEach
-    @DisplayName("Configuração inicial para TokenService")
     void setUp() {
-        tokenService = new TokenService();
+        MockitoAnnotations.openMocks(this);
         ReflectionTestUtils.setField(tokenService, "secret", SECRET);
-        validUser = new UserDTO("guilherme", "guilherme@email", "123", UserRoles.COSTUMER);
+        validUser = new User("testuser", "test@email.com", "password", UserRoles.COSTUMER);
+        validUser.setId(UUID.randomUUID());
     }
 
     @Test
-    @DisplayName("Deve gerar um token válido para o usuário")
+    @DisplayName("Should generate a valid token for user")
     void generateValidToken() {
-        User validUserModel = new User(validUser.name(), validUser.email(), validUser.password(), validUser.role());
-        validUserModel.setId(UUID.randomUUID());
-
-        String token = tokenService.generateToken(validUserModel);
+        String token = tokenService.generateToken(validUser);
         assertNotNull(token);
         assertFalse(token.isEmpty());
-
-        String result = tokenService.validateToken(token);
-        assertEquals(validUser.email(), result);
+        String subject = tokenService.validateToken(token);
+        assertEquals(validUser.getLogin(), subject);
     }
 
     @Test
-    @DisplayName("Deve lançar uma exceção ao tentar gerar token com secret inválido")
-    void validateTokenWithInvalidSecret() {
-        TokenService ts = new TokenService();
-        User userModel = new User("nome", "email@email.com", "senha", UserRoles.ADMIN); // Conversão explícita
-        ReflectionTestUtils.setField(ts, "secret", null);
-
-        Exception exception = assertThrows(RuntimeException.class, () -> {
-            ts.generateToken(userModel); // Passa User
-        });
-        assertNotNull(exception.getCause());
-        assertTrue(exception.getMessage().contains("Erro ao gerar token JWT"));
+    @DisplayName("Should throw exception when generating token with invalid secret")
+    void generateTokenWithInvalidSecretShouldThrow() {
+        ReflectionTestUtils.setField(tokenService, "secret", null);
+        Exception exception = assertThrows(RuntimeException.class, () -> tokenService.generateToken(validUser));
+        assertTrue(exception.getMessage().contains("Error generating JWT token"));
     }
 
     @Test
-    @DisplayName("Deve validar o subject do token gerado")
-    void ValidateTokenSubject() {
-
-        User validUserModel = new User(
-                validUser.name(),
-                validUser.email(),
-                validUser.password(),
-                validUser.role()
-        );
-        validUserModel.setId(UUID.randomUUID());
-
-        String token = tokenService.generateToken(validUserModel);
-
-        assertNotNull(token);
-        assertFalse(token.isEmpty());
-
-        String result = tokenService.validateToken(token);
-        assertEquals(validUser.email(), result);
-
-    }
-
-
-    @Test
-    @DisplayName("Deve retornar vazio para token com issuer inválido")
-    void validateInvalidIssuerToken() {
-        TokenService tokenService = new TokenService();
-        ReflectionTestUtils.setField(tokenService, "secret", SECRET);
-
-        User validUserModel = new User(validUser.name(), validUser.email(), validUser.password(), validUser.role());
-        String tokenOutroIssuer = com.auth0.jwt.JWT.create()
-                .withIssuer("OutroIssuer")
-                .withSubject(validUserModel.getLogin()) // Usa o modelo User
+    @DisplayName("Should throw exception for token with invalid issuer")
+    void validateTokenWithInvalidIssuerShouldThrow() {
+        String token = com.auth0.jwt.JWT.create()
+                .withIssuer("OtherIssuer")
+                .withSubject(validUser.getLogin())
                 .withExpiresAt(java.time.LocalDateTime.now().plusHours(2)
-                        .atZone(java.time.ZoneId.of("America/Sao_Paulo"))
-                        .toInstant())
+                        .atZone(java.time.ZoneId.of("America/Sao_Paulo")).toInstant())
                 .sign(com.auth0.jwt.algorithms.Algorithm.HMAC256(SECRET));
-
-        String result = tokenService.validateToken(tokenOutroIssuer);
-        assertEquals("", result);
+        assertThrows(JWTVerificationException.class, () -> tokenService.validateToken(token));
     }
 
     @Test
-    @DisplayName("Deve retornar vazio para token alterado")
-    void validateAlteredToken() {
-
-        User validUserModel = new User(validUser.name(), validUser.email(), validUser.password(), validUser.role());
-        validUserModel.setId(UUID.randomUUID());
-
-        String token = tokenService.generateToken(validUserModel);
+    @DisplayName("Should throw exception for altered token")
+    void validateAlteredTokenShouldThrow() {
+        String token = tokenService.generateToken(validUser);
         String alteredToken = token + "abc";
-
-        String result = tokenService.validateToken(alteredToken);
-        assertEquals("", result);
+        assertThrows(JWTVerificationException.class, () -> tokenService.validateToken(alteredToken));
     }
 
     @Test
-    @DisplayName("Deve retornar vazio para token expirado")
-    void validateExpiredToken() {
-        User validUserModel = new User(validUser.name(), validUser.email(), validUser.password(), validUser.role());
+    @DisplayName("Should throw exception for expired token")
+    void validateExpiredTokenShouldThrow() {
         String expiredToken = com.auth0.jwt.JWT.create()
                 .withIssuer("CodeBlog")
-                .withSubject(validUserModel.getLogin()) // Usa o modelo User
+                .withSubject(validUser.getLogin())
                 .withExpiresAt(java.time.LocalDateTime.now().minusHours(1)
-                        .atZone(java.time.ZoneId.of("America/Sao_Paulo"))
-                        .toInstant())
+                        .atZone(java.time.ZoneId.of("America/Sao_Paulo")).toInstant())
                 .sign(com.auth0.jwt.algorithms.Algorithm.HMAC256(SECRET));
-
-        String result = tokenService.validateToken(expiredToken);
-        assertEquals("", result);
+        assertThrows(JWTVerificationException.class, () -> tokenService.validateToken(expiredToken));
     }
 
     @Test
-    @DisplayName("Deve retornar vazio para token vazio ou nulo")
-    void validateEmptyToken() {
-        assertEquals("", tokenService.validateToken(""));
-        assertEquals("", tokenService.validateToken(null));
+    @DisplayName("Should throw exception for empty or null token")
+    void validateTokenWithEmptyOrNullValueShouldThrowJWTVerificationException() {
+        assertThrows(JWTVerificationException.class, () -> tokenService.validateToken(""));
+        assertThrows(JWTVerificationException.class, () -> tokenService.validateToken(null));
     }
 
     @Test
-    @DisplayName("Deve gerar tokens idênticos para o mesmo usuário")
-    void generateEqualTokens() {
-        User validUserModel = new User(validUser.name(), validUser.email(), validUser.password(), validUser.role());
-        validUserModel.setId(UUID.randomUUID());
-        String token1 = tokenService.generateToken(validUserModel);
-        String token2 = tokenService.generateToken(validUserModel);
+    @DisplayName("Should extract userId from token")
+    void getSubjectIdFromTokenShouldReturnUserId() {
+        String token = tokenService.generateToken(validUser);
+        String userId = tokenService.getSubjectIdFromToken(token);
+        assertEquals(validUser.getId().toString(), userId);
+    }
 
-        assertNotNull(token1);
-        assertNotNull(token2);
-        assertFalse(token1.isEmpty());
-        assertFalse(token2.isEmpty());
+    @Test
+    @DisplayName("Should throw exception if token does not contain id claim")
+    void getSubjectIdFromTokenWithoutIdShouldThrow() {
+        String token = com.auth0.jwt.JWT.create()
+                .withIssuer("CodeBlog")
+                .withSubject(validUser.getLogin())
+                .withExpiresAt(java.time.LocalDateTime.now().plusHours(2)
+                        .atZone(java.time.ZoneId.of("America/Sao_Paulo")).toInstant())
+                .sign(com.auth0.jwt.algorithms.Algorithm.HMAC256(SECRET));
+        Exception exception = assertThrows(RuntimeException.class, () -> tokenService.getSubjectIdFromToken(token));
 
-        assertEquals(token1, token2);
+        assertTrue(exception.getMessage().contains("Error extracting user id from JWT token"));
+    }
 
-        String subject1 = tokenService.validateToken(token1);
-        String subject2 = tokenService.validateToken(token2);
+    @Test
+    @DisplayName("Should blacklist token and check blacklist status")
+    void blackListTokenAndCheckStatus() {
+        String token = tokenService.generateToken(validUser);
+        com.auth0.jwt.interfaces.DecodedJWT decodedJWT = com.auth0.jwt.JWT.decode(token);
+        String jti = decodedJWT.getId();
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, Object> valueOps = (ValueOperations<String, Object>) mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        doNothing().when(valueOps).set(anyString(), any(), anyLong(), any());
+        when(redisTemplate.hasKey("blacklist:" + jti)).thenReturn(true);
+        tokenService.blackListToken(token);
+        boolean isBlacklisted = tokenService.isBlackListed(token);
+        assertTrue(isBlacklisted);
+        verify(redisTemplate).opsForValue();
+        verify(redisTemplate).hasKey("blacklist:" + jti);
+    }
 
-        assertEquals(validUser.email(), subject1);
-        assertEquals(validUser.email(), subject2);
+    @Test
+    @DisplayName("Should return false for token without JTI in blacklist check")
+    void isBlackListedWithoutJtiShouldReturnFalse() {
+        String token = com.auth0.jwt.JWT.create()
+                .withIssuer("CodeBlog")
+                .withSubject(validUser.getLogin())
+                .withExpiresAt(java.time.LocalDateTime.now().plusHours(2)
+                        .atZone(java.time.ZoneId.of("America/Sao_Paulo")).toInstant())
+                .sign(com.auth0.jwt.algorithms.Algorithm.HMAC256(SECRET));
+        boolean result = tokenService.isBlackListed(token);
+        assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("Should recover token from HttpServletRequest")
+    void recoverTokenShouldReturnToken() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        String token = "sometokenvalue";
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        String recovered = tokenService.recoverToken(request);
+        assertEquals(token, recovered);
+    }
+
+    @Test
+    @DisplayName("Should return null if Authorization header is missing or invalid")
+    void recoverTokenShouldReturnNullIfHeaderMissingOrInvalid() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getHeader("Authorization")).thenReturn(null);
+        assertNull(tokenService.recoverToken(request));
+        when(request.getHeader("Authorization")).thenReturn("InvalidHeader");
+        assertNull(tokenService.recoverToken(request));
     }
 }

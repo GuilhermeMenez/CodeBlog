@@ -1,4 +1,4 @@
-package blog.code.codeblog.dto;
+package blog.code.codeblog.dto.follow;
 
 
 import java.util.UUID;

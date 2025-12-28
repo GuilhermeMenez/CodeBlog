@@ -1,12 +1,13 @@
 package blog.code.codeblog.service;
 
-import blog.code.codeblog.dto.AuthenticationDTO;
-import blog.code.codeblog.dto.LoginResponseDTO;
-import blog.code.codeblog.dto.UserDTO;
+import blog.code.codeblog.dto.authentication.AuthenticationDTO;
+import blog.code.codeblog.dto.authentication.LoginResponseDTO;
+import blog.code.codeblog.dto.user.CreateUserDTO;
 import blog.code.codeblog.model.User;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +16,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class AuthorizationService implements UserDetailsService {
 
@@ -32,34 +34,57 @@ public class AuthorizationService implements UserDetailsService {
     private PasswordEncoder passwordEncoder;
 
 
-
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return userService.findByLogin(username);
+        log.info("[loadUserByUsername] Attempting to load user by username: {}", username);
+        User user = userService.findByLogin(username);
+        if (user == null) {
+            log.warn("[loadUserByUsername] User not found for username: {}", username);
+            throw new UsernameNotFoundException("User not found with username: " + username);
+        }
+        return user;
     }
 
-    public String register(UserDTO user) {
+    public String register(CreateUserDTO user) throws IllegalArgumentException {
+        log.info("[register] Attempting to register user: {}", user.email());
+
         if (userService.findByLogin(user.email()) != null){
-            throw new UsernameNotFoundException("Email já cadastrado");
+            log.warn("[register] Email already registered: {}", user.email());
+            throw new IllegalArgumentException("Email already registered");
         }
+
         String encryptedPassword = passwordEncoder.encode(user.password());
-        User newUser = new User(user.name(),user.email(), encryptedPassword, user.role());
+        User newUser = new User(user.name(), user.email(), encryptedPassword);
         userService.saveUser(newUser);
+
+        log.info("[register] User registered successfully: {}", newUser.getLogin());
 
         AuthenticationDTO userAuthenticate = new AuthenticationDTO(user.email(), user.password());
         var loginResponse = login(userAuthenticate);
-        return loginResponse.getBody().token();
+
+        log.info("[register] User logged in successfully after registration: {}", newUser.getLogin());
+        return loginResponse.token();
     }
 
-    public ResponseEntity<LoginResponseDTO> login(AuthenticationDTO authenticationDTO){
-        var UsernamePassword = new UsernamePasswordAuthenticationToken(authenticationDTO.login(), authenticationDTO.password());
-        var auth = authenticationManager.authenticate(UsernamePassword);
+    public LoginResponseDTO login(AuthenticationDTO authenticationDTO){
+        log.info("[login] Attempting login for user: {}", authenticationDTO.login());
+
+        var usernamePassword = new UsernamePasswordAuthenticationToken(authenticationDTO.login(), authenticationDTO.password());
+        var auth = authenticationManager.authenticate(usernamePassword);
         User user = (User) auth.getPrincipal();
         var token = tokenService.generateToken(user);
 
-        return ResponseEntity.ok(new LoginResponseDTO(token));
+        log.info("[login] User logged in successfully: {}", user.getLogin());
+
+        return new LoginResponseDTO(token);
     }
 
+    public void logout(HttpServletRequest request){
+        String recoveredToken = tokenService.recoverToken(request);
+        tokenService.blackListToken(recoveredToken);
+
+        log.info("[logout] User logged out successfully. Remote user: {}", request.getRemoteUser());
+    }
 
 
 }

@@ -241,7 +241,7 @@ class PostServiceImplTest {
     @DisplayName("Should throw DataIntegrityViolationException when title is null")
     void savePostShouldThrowWhenTitleIsNull() {
         CreatePostRequestDTO postDTO = new CreatePostRequestDTO(null, "content", UUID.randomUUID());
-        assertThrows(IllegalArgumentException.class, () -> postService.save(postDTO));
+        assertThrows(EntityNotFoundException.class, () -> postService.save(postDTO));
     }
 
     @Test

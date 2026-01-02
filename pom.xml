@@ -60,7 +60,6 @@
                 <version>${spring-framework.version}</version>
             </dependency>
 
-            <!-- Override Spring Security para corrigir CVE-2025-41232, CVE-2025-41248, CVE-2025-22223, CVE-2025-22228 -->
             <dependency>
                 <groupId>org.springframework.security</groupId>
                 <artifactId>spring-security-core</artifactId>

@@ -14,7 +14,7 @@
     <name>CodeBlog</name>
     <description>CodeBlog</description>
     <properties>
-        <java.version>23</java.version>
+        <java.version>17</java.version>
         <springdoc-openapi.version>2.8.14</springdoc-openapi.version>
         <postgresql.version>42.7.3</postgresql.version>
         <hibernate-validator.version>8.0.0.Final</hibernate-validator.version>

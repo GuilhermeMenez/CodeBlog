@@ -61,7 +61,7 @@ class GlobalExceptionHandlerIntegrationTest {
     @Test
     @DisplayName("Should return 401 for unauthenticated POST to protected endpoint")
     void shouldReturn401ForUnauthenticatedPostToProtectedEndpoint() throws Exception {
-        mockMvc.perform(post("/actuator/health"))
+        mockMvc.perform(post("/users"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.status", equalTo(401)))

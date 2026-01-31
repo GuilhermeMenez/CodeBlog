@@ -3,6 +3,7 @@ package blog.code.codeblog.service;
 import blog.code.codeblog.dto.authentication.AuthenticationDTO;
 import blog.code.codeblog.dto.authentication.LoginResponseDTO;
 import blog.code.codeblog.dto.user.CreateUserDTO;
+import blog.code.codeblog.enums.FlowImageFlag;
 import blog.code.codeblog.model.User;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.io.IOException;
 
 @Slf4j
 @Service
@@ -32,6 +35,10 @@ public class AuthorizationService implements UserDetailsService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    @Lazy
+    private CloudinaryService cloudinaryService;
 
 
     @Override
@@ -58,6 +65,15 @@ public class AuthorizationService implements UserDetailsService {
         userService.saveUser(newUser);
 
         log.info("[register] User registered successfully: {}", newUser.getLogin());
+
+        if (user.profileImage() != null && !user.profileImage().isEmpty()) {
+            log.info("[register] Processing profile image for user: {}", newUser.getId());
+            try {
+                cloudinaryService.uploadFile(user.profileImage(), FlowImageFlag.PROFILE, newUser.getId().toString(), null);
+            } catch (IOException e) {
+                log.error("[register] Failed to upload profile image for user: {}. Error: {}", newUser.getId(), e.getMessage());
+            }
+        }
 
         AuthenticationDTO userAuthenticate = new AuthenticationDTO(user.email(), user.password());
         var loginResponse = login(userAuthenticate);

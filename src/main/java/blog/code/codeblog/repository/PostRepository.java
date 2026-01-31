@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,4 +20,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     @Query("SELECT p FROM Post p WHERE p.author IN :following ORDER BY function('RANDOM')")
     List<Post> findRandomPosts(@Param("following") Set<User> following, Pageable pageable);
+
+    @Query("SELECT p FROM Post p JOIN p.images i WHERE KEY(i) = :publicId")
+    Optional<Post> findByImagePublicId(@Param("publicId") String publicId);
 }

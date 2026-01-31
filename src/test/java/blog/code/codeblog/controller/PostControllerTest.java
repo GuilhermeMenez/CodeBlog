@@ -72,7 +72,8 @@ class PostControllerTest {
         CreatePostRequestDTO requestDTO = new CreatePostRequestDTO(
                 "First Post",
                 "Content of the first post",
-                UUID.randomUUID()
+                UUID.randomUUID(),
+                null
         );
 
         String generatedPostId = UUID.randomUUID().toString();

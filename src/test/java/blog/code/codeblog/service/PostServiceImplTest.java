@@ -38,7 +38,7 @@ class PostServiceImplTest {
         UUID userId = UUID.randomUUID();
         User mockUser = new User();
         mockUser.setId(userId);
-        CreatePostRequestDTO request = new CreatePostRequestDTO("Test Title", "Test Content", userId);
+        CreatePostRequestDTO request = new CreatePostRequestDTO("Test Title", "Test Content", userId, null);
         Post mockPost = new Post();
         mockPost.setId(UUID.randomUUID());
         mockPost.setTitle(request.title());
@@ -57,7 +57,7 @@ class PostServiceImplTest {
     @DisplayName("Should throw RuntimeException when author not found on save")
     void savePostAuthorNotFoundShouldThrow() {
         UUID userId = UUID.randomUUID();
-        CreatePostRequestDTO request = new CreatePostRequestDTO("Test Title", "Test Content", userId);
+        CreatePostRequestDTO request = new CreatePostRequestDTO("Test Title", "Test Content", userId, null);
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
         RuntimeException exception = assertThrows(RuntimeException.class, () -> postService.save(request));
         assertEquals("Author not found", exception.getMessage());
@@ -240,21 +240,21 @@ class PostServiceImplTest {
     @Test
     @DisplayName("Should throw DataIntegrityViolationException when title is null")
     void savePostShouldThrowWhenTitleIsNull() {
-        CreatePostRequestDTO postDTO = new CreatePostRequestDTO(null, "content", UUID.randomUUID());
+        CreatePostRequestDTO postDTO = new CreatePostRequestDTO(null, "content", UUID.randomUUID(), null);
         assertThrows(EntityNotFoundException.class, () -> postService.save(postDTO));
     }
 
     @Test
     @DisplayName("Should throw DataIntegrityViolationException when content is null")
     void savePostShouldThrowWhenContentIsNull() {
-        CreatePostRequestDTO postDTO = new CreatePostRequestDTO("title", null, UUID.randomUUID());
+        CreatePostRequestDTO postDTO = new CreatePostRequestDTO("title", null, UUID.randomUUID(), null);
         assertThrows(EntityNotFoundException.class, () -> postService.save(postDTO));
     }
 
     @Test
     @DisplayName("Should throw exception when authorId is null")
     void savePostShouldThrowWhenAuthorIdIsNull() {
-        CreatePostRequestDTO postDTO = new CreatePostRequestDTO("title", "content", null);
+        CreatePostRequestDTO postDTO = new CreatePostRequestDTO("title", "content", null, null);
         Exception exception = assertThrows(Exception.class, () -> postService.save(postDTO));
         assertNotNull(exception);
     }
@@ -275,6 +275,99 @@ class PostServiceImplTest {
         PutPostDTO updateDTO = new PutPostDTO("title", "content", userId, userId);
         when(postRepository.findById(postId)).thenReturn(Optional.empty());
         assertThrows(RuntimeException.class, () -> postService.updatePost(postId, updateDTO));
+    }
+
+    @Test
+    @DisplayName("Should save uploaded image successfully")
+    void saveUploadedImageSuccess() {
+        UUID postId = UUID.randomUUID();
+        String imageUrl = "https://cloudinary.com/test-image.jpg";
+        String publicId = "post_pics/test-image";
+
+        Post post = new Post();
+        post.setId(postId);
+        post.setImages(new HashMap<>());
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = postService.saveuploadedImage(postId, imageUrl, publicId);
+
+        assertNotNull(result);
+        assertEquals("Image uploaded", result.message());
+        assertEquals(imageUrl, result.imageUrl());
+        assertEquals(publicId, result.publicId());
+        assertTrue(post.getImages().containsKey(publicId));
+        assertEquals(imageUrl, post.getImages().get(publicId));
+        verify(postRepository).findById(postId);
+        verify(postRepository).save(post);
+    }
+
+    @Test
+    @DisplayName("Should throw EntityNotFoundException when saving image for non-existent post")
+    void saveUploadedImagePostNotFound() {
+        UUID postId = UUID.randomUUID();
+        String imageUrl = "https://cloudinary.com/test-image.jpg";
+        String publicId = "post_pics/test-image";
+
+        when(postRepository.findById(postId)).thenReturn(Optional.empty());
+
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+            () -> postService.saveuploadedImage(postId, imageUrl, publicId));
+
+        assertEquals("Post não encontrado", exception.getMessage());
+        verify(postRepository).findById(postId);
+        verify(postRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should delete image from post successfully")
+    void deleteImageSuccess() {
+        String publicId = "post_pics/test-image";
+        Post post = new Post();
+        post.setId(UUID.randomUUID());
+        Map<String, String> images = new HashMap<>();
+        images.put(publicId, "https://cloudinary.com/test-image.jpg");
+        post.setImages(images);
+
+        when(postRepository.findByImagePublicId(publicId)).thenReturn(Optional.of(post));
+        when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        boolean result = postService.deleteImage(publicId);
+
+        assertTrue(result);
+        assertFalse(post.getImages().containsKey(publicId));
+        verify(postRepository).findByImagePublicId(publicId);
+        verify(postRepository).save(post);
+    }
+
+    @Test
+    @DisplayName("Should return false when image not found for deletion")
+    void deleteImageNotFound() {
+        String publicId = "post_pics/nonexistent-image";
+
+        when(postRepository.findByImagePublicId(publicId)).thenReturn(Optional.empty());
+
+        boolean result = postService.deleteImage(publicId);
+
+        assertFalse(result);
+        verify(postRepository).findByImagePublicId(publicId);
+        verify(postRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should get post reference by ID")
+    void getReferenceSuccess() {
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+
+        when(postRepository.getReferenceById(postId)).thenReturn(post);
+
+        Post result = postService.getReference(postId);
+
+        assertEquals(post, result);
+        verify(postRepository).getReferenceById(postId);
     }
 
   }

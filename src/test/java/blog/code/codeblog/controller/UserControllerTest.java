@@ -80,7 +80,7 @@ class UserControllerTest {
     @DisplayName("Should update user and return updated user")
     void updateUserShouldReturnUpdatedUserWhenUserExists() {
         UUID id = testUser.getId();
-        UpdateUserRequestDTO updateDTO = new UpdateUserRequestDTO("updateduser", "test@example.com", "newpassword");
+        UpdateUserRequestDTO updateDTO = new UpdateUserRequestDTO("updateduser", "test@example.com", "newpassword", null);
         UpdateUserResponseDTO updatedResponse = new UpdateUserResponseDTO("updateduser", "test@example.com");
         when(userService.updateUser(id, updateDTO)).thenReturn(updatedResponse);
 

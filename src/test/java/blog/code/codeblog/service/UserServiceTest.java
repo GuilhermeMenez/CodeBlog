@@ -95,7 +95,7 @@ class UserServiceTest {
         existingUser.setName("Old Name");
         existingUser.setLogin("old@email.com");
         existingUser.setPassword("oldPassword");
-        UpdateUserRequestDTO updateUserDTO = new UpdateUserRequestDTO("New Name", "new@email.com", "newPassword");
+        UpdateUserRequestDTO updateUserDTO = new UpdateUserRequestDTO("New Name", "new@email.com", "newPassword", null);
         when(userRepository.findById(id)).thenReturn(Optional.of(existingUser));
         when(bCryptPasswordEncoder.encode("newPassword")).thenReturn("encodedNewPassword");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -111,7 +111,7 @@ class UserServiceTest {
     @DisplayName("Should throw exception when updating non-existent user")
     void updateUserNotFound() {
         UUID id = UUID.randomUUID();
-        UpdateUserRequestDTO updateUserDTO = new UpdateUserRequestDTO("Name", "email@email.com", "password");
+        UpdateUserRequestDTO updateUserDTO = new UpdateUserRequestDTO("Name", "email@email.com", "password", null);
         when(userRepository.findById(id)).thenReturn(Optional.empty());
         RuntimeException exception = assertThrows(RuntimeException.class, () -> userService.updateUser(id, updateUserDTO));
         assertEquals("User not found", exception.getMessage());
@@ -216,5 +216,82 @@ class UserServiceTest {
         User result = userService.getReference(id);
         assertEquals(user, result);
         verify(userRepository).getReferenceById(id);
+    }
+
+    @Test
+    @DisplayName("Should save upload profile pic successfully")
+    void saveUploadProfilePicSuccess() {
+        UUID userId = UUID.randomUUID();
+        String profilePicUrl = "https://cloudinary.com/profile.jpg";
+        String profilePicId = "profile_pics/test-image";
+        User existingUser = new User();
+        existingUser.setId(userId);
+        existingUser.setLogin("user@email.com");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = userService.saveUploadProfilePic(userId, profilePicUrl, profilePicId);
+
+        assertNotNull(result);
+        assertEquals("Profile pic updated successfully", result.message());
+        assertEquals(profilePicUrl, result.imageUrl());
+        assertEquals(profilePicId, result.publicId());
+        assertEquals(profilePicUrl, existingUser.getUrlProfilePic());
+        assertEquals(profilePicId, existingUser.getProfilePicId());
+        verify(userRepository).findById(userId);
+        verify(userRepository).save(existingUser);
+    }
+
+    @Test
+    @DisplayName("Should throw EntityNotFoundException when saving profile pic for non-existent user")
+    void saveUploadProfilePicUserNotFound() {
+        UUID userId = UUID.randomUUID();
+        String profilePicUrl = "https://cloudinary.com/profile.jpg";
+        String profilePicId = "profile_pics/test-image";
+
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+            () -> userService.saveUploadProfilePic(userId, profilePicUrl, profilePicId));
+
+        assertEquals("User not found", exception.getMessage());
+        verify(userRepository).findById(userId);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should delete profile pic successfully")
+    void deleteProfilePicSuccess() {
+        String publicId = "profile_pics/test-image";
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setUrlProfilePic("https://cloudinary.com/profile.jpg");
+        user.setProfilePicId(publicId);
+
+        when(userRepository.findByProfilePicId(publicId)).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        boolean result = userService.deleteProfilePic(publicId);
+
+        assertTrue(result);
+        assertNull(user.getUrlProfilePic());
+        assertNull(user.getProfilePicId());
+        verify(userRepository).findByProfilePicId(publicId);
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("Should return false when profile pic not found for deletion")
+    void deleteProfilePicNotFound() {
+        String publicId = "profile_pics/nonexistent-image";
+
+        when(userRepository.findByProfilePicId(publicId)).thenReturn(Optional.empty());
+
+        boolean result = userService.deleteProfilePic(publicId);
+
+        assertFalse(result);
+        verify(userRepository).findByProfilePicId(publicId);
+        verify(userRepository, never()).save(any());
     }
 }

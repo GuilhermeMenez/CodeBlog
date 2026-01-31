@@ -17,4 +17,5 @@ public interface PostService {
     List<Post> getBalancedFeed(UUID userId, int page, int size);
     List<Post>getAllUserPosts(UUID userId);
     PostResponseDTO  updatePost(UUID postId, PutPostDTO updatedPost);
+
 }

@@ -93,8 +93,6 @@ public class TokenService {
                 .toInstant();
     }
 
-
-
     public void blackListToken(String token) {
         log.info("[blackListToken] Blacklisting token");
         try {

@@ -1,5 +1,6 @@
 package blog.code.codeblog.service;
 
+import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
 import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
 import blog.code.codeblog.dto.follow.FollowUnfollowRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
@@ -66,7 +67,23 @@ public class UserService {
         log.info("[deleteUser] User deleted successfully. id: {}", userId);
     }
 
-    public boolean handleFollowUnfollow(FollowUnfollowRequestDTO followUnfollowRequestDTO, boolean isFollow){
+    public ImageUploadResponseDTO saveUploadProfilePic(UUID userId, String profilePicUrl, String profilePicId) throws EntityNotFoundException {
+        log.info("[updateProfilePic] Attempting to update profile pic for user with id: {}", userId);
+        User existingUser = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.warn("[updateProfilePic] User not found. id: {}", userId);
+                    return new EntityNotFoundException("User not found");
+                });
+        existingUser.setUrlProfilePic(profilePicUrl);
+        existingUser.setProfilePicId(profilePicId);
+        userRepository.save(existingUser);
+        log.info("[updateProfilePic] Profile pic updated successfully. id for user: {}", existingUser.getLogin());
+        return new ImageUploadResponseDTO("Profile pic updated successfully",profilePicUrl, profilePicId);
+    }
+
+
+
+        public boolean handleFollowUnfollow(FollowUnfollowRequestDTO followUnfollowRequestDTO, boolean isFollow){
         log.info("[handleFollowUnfollow] Attempting to {} user. followerId: {}, followedId: {}", isFollow ? "follow" : "unfollow", followUnfollowRequestDTO.followerId(), followUnfollowRequestDTO.followedId());
         if (followUnfollowRequestDTO.followedId().equals(followUnfollowRequestDTO.followerId())) {
             log.warn("[handleFollowUnfollow] Follower and followed are the same user. id: {}", followUnfollowRequestDTO.followerId());
@@ -95,6 +112,20 @@ public class UserService {
     public User getReference(UUID id){
         log.info("[getReference] Getting reference for user id: {}", id);
         return userRepository.getReferenceById(id);
+    }
+
+    public boolean deleteProfilePic(String publicId) {
+        log.info("[deleteProfilePic] Attempting to delete profile pic with publicId: {}", publicId);
+        Optional<User> userOpt = userRepository.findByProfilePicId(publicId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.setUrlProfilePic(null);
+            user.setProfilePicId(null);
+            userRepository.save(user);
+            log.info("[deleteProfilePic] Profile pic removed from user: {}", user.getId());
+            return true;
+        }
+        return false;
     }
 
 }

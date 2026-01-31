@@ -1,7 +1,9 @@
 package blog.code.codeblog.service;
 
+import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
 import blog.code.codeblog.dto.comment.CommentResponseDTO;
 import blog.code.codeblog.dto.post.*;
+import blog.code.codeblog.enums.FlowImageFlag;
 import blog.code.codeblog.model.Comment;
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.model.User;
@@ -15,7 +17,9 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -31,9 +35,12 @@ public class PostServiceImpl implements PostService {
     @Lazy
     TokenService tokenService;
 
-
     @Autowired
     UserRepository userRepository;
+
+    @Lazy
+    @Autowired
+    CloudinaryService cloudinaryService;
 
     @Override
     public List<PostResponseDTO> findAll() {
@@ -89,19 +96,37 @@ public class PostServiceImpl implements PostService {
     @Override
     public String save(CreatePostRequestDTO post) {
         log.info("[save] Attempting to save new post for authorId: {}", post.authorId());
+
         User user = userRepository.findById(post.authorId())
                 .orElseThrow(() -> {
                     log.warn("[save] Author not found. authorId: {}", post.authorId());
                     return new EntityNotFoundException("Author not found");
                 });
-        Post newPost = new Post();
-        newPost.setTitle(post.title());
-        newPost.setContent(post.content());
-        newPost.setDate(LocalDate.now());
-        newPost.setUser(user);
-        newPost.setAuthor(user.getName());
+
+        Post newPost = Post.builder()
+                .title(post.title())
+                .content(post.content())
+                .date(LocalDate.now())
+                .user(user)
+                .author(user.getName())
+                .build();
 
         Post savedPost = postRepository.save(newPost);
+
+        if (post.images() != null && !post.images().isEmpty()) {
+            log.info("[save] Processing {} images for post: {}", post.images().size(), savedPost.getId());
+            for (MultipartFile image : post.images()) {
+                if (image != null && !image.isEmpty()) {
+                    try {
+                        cloudinaryService.uploadFile(image, FlowImageFlag.POST, null, savedPost.getId().toString());
+                    } catch (IOException e) {
+                        log.error("[save] Failed to upload image for post: {}. Error: {}", savedPost.getId(), e.getMessage());
+
+                    }
+                }
+            }
+        }
+
         log.info("[save] Post saved successfully. postId: {}", savedPost.getId());
         return savedPost.getId().toString();
     }
@@ -163,7 +188,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public PostResponseDTO updatePost(UUID postId, PutPostDTO updatedPost) throws RuntimeException {
+    public PostResponseDTO updatePost(UUID postId, PutPostDTO updatedPost) throws EntityNotFoundException {
         log.info("[updatePost] Attempting to update post. postId: {}", postId);
         if (!updatedPost.authorId().equals(updatedPost.userId())) {
             log.warn("[updatePost] User not authorized to update post. userId: {}, postId: {}", updatedPost.userId(), postId);
@@ -172,7 +197,7 @@ public class PostServiceImpl implements PostService {
         Post existingPost = findEntityById(postId)
                 .orElseThrow(() -> {
                     log.warn("[updatePost] Post not found. postId: {}", postId);
-                    return new RuntimeException("Post not found: " + postId);
+                    return new EntityNotFoundException("Post not found: " + postId);
                 });
         existingPost.setTitle(updatedPost.title());
         existingPost.setContent(updatedPost.content());
@@ -182,9 +207,35 @@ public class PostServiceImpl implements PostService {
         return convertToPostResponseDTO(existingPost);
     }
 
+    public ImageUploadResponseDTO saveuploadedImage(UUID postId, String imageUrl, String publicId) {
+        log.info("[uploadImage] Uploading image for: {}", postId);
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> {
+                    log.warn("[uploadImage] Post not found id: {}", postId);
+                    return new EntityNotFoundException("Post não encontrado");
+                });
+        post.getImages().put(publicId, imageUrl);
+        postRepository.save(post);
+        log.info("[uploadImage] Image uploaded for postId: {}", postId);
+        return new ImageUploadResponseDTO("Image uploaded", imageUrl, publicId);
+    }
+
 
     public Post getReference(UUID id) {
         return postRepository.getReferenceById(id);
+    }
+
+    public boolean deleteImage(String publicId) {
+        log.info("[deleteImage] Attempting to delete image with publicId: {}", publicId);
+        Optional<Post> postOpt = postRepository.findByImagePublicId(publicId);
+        if (postOpt.isPresent()) {
+            Post post = postOpt.get();
+            post.getImages().remove(publicId);
+            postRepository.save(post);
+            log.info("[deleteImage] Image removed from post: {}", post.getId());
+            return true;
+        }
+        return false;
     }
 
 }

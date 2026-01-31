@@ -47,7 +47,7 @@ class AuthorizationServiceTest {
     @Test
     @DisplayName("Should register a user successfully")
     void registerSuccessfully() {
-        CreateUserDTO createUserDTO = new CreateUserDTO("Guilherme", "email@test.com", "123456", UserRoles.COSTUMER);
+        CreateUserDTO createUserDTO = new CreateUserDTO("Guilherme", "email@test.com", "123456", UserRoles.COSTUMER, null);
         String encodedPassword = "encryptedPassword";
         User newUser = new User("Guilherme", "email@test.com", encodedPassword, UserRoles.COSTUMER);
         String token = "testToken";
@@ -75,7 +75,7 @@ class AuthorizationServiceTest {
     @Test
     @DisplayName("Should throw exception when registering a user with an already registered email")
     void registerWithExistingUserThrowsException() {
-        CreateUserDTO createUserDTO = new CreateUserDTO("Jane Doe", "janedoe@example.com", "password123", UserRoles.COSTUMER);
+        CreateUserDTO createUserDTO = new CreateUserDTO("Jane Doe", "janedoe@example.com", "password123", UserRoles.COSTUMER, null);
         User existingUser = new User("Jane Doe", "janedoe@example.com", "encodedPassword123", UserRoles.COSTUMER);
 
         when(userService.findByLogin(createUserDTO.email())).thenReturn(existingUser);

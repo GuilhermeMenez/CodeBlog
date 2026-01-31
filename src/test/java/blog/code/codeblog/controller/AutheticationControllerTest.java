@@ -33,7 +33,7 @@ class AutheticationControllerTest {
 
     @Test
     void testRegisterSuccess() {
-        CreateUserDTO createUserDTO = new CreateUserDTO("Test User", "test@example.com", "plainPassword", UserRoles.COSTUMER);
+        CreateUserDTO createUserDTO = new CreateUserDTO("Test User", "test@example.com", "plainPassword", UserRoles.COSTUMER, null);
 
         when(authorizationService.register(createUserDTO)).thenReturn("mocked-token");
 

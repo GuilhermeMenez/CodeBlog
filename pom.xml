@@ -26,15 +26,13 @@
         <spring-framework.version>6.2.13</spring-framework.version>
         <spring-security.version>6.4.10</spring-security.version>
         <tomcat.version>10.1.47</tomcat.version>
-        <logback.version>1.5.21</logback.version>
+        <logback.version>1.5.25</logback.version>
         <nimbus-jose-jwt.version>10.3</nimbus-jose-jwt.version>
         <commons-lang3.version>3.18.0</commons-lang3.version>
     </properties>
 
     <dependencyManagement>
-        <dependencies>
-            <!-- Override Spring Framework para corrigir CVE-2025-22233, CVE-2025-41249, CVE-2025-41234 -->
-            <dependency>
+        <dependencies><dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-core</artifactId>
                 <version>${spring-framework.version}</version>
@@ -113,7 +111,6 @@
                 <version>${tomcat.version}</version>
             </dependency>
 
-            <!-- Override Logback para corrigir CVE-2025-11226 -->
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-core</artifactId>
@@ -125,18 +122,22 @@
                 <version>${logback.version}</version>
             </dependency>
 
-            <!-- Override Nimbus JOSE JWT para corrigir CVE-2025-53864 -->
             <dependency>
                 <groupId>com.nimbusds</groupId>
                 <artifactId>nimbus-jose-jwt</artifactId>
                 <version>${nimbus-jose-jwt.version}</version>
             </dependency>
 
-            <!-- Override Commons Lang3 para corrigir CVE-2025-48924 -->
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
                 <version>${commons-lang3.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>3.27.7</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -254,10 +255,16 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc-openapi.version}</version>
         </dependency>
-        <!-- Logging: Logback (usando versão gerenciada pelo Spring Boot) -->
+        <!-- Logging: Logback com versão segura para corrigir CVE-2026-1225 -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
+            <version>1.5.25</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.25</version>
         </dependency>
         <!-- Desenvolvimento -->
         <dependency>
@@ -278,12 +285,37 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Override AssertJ para corrigir CVE-2026-24400 -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.27.7</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
             <version>26.0.2</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>com.cloudinary</groupId>
+            <artifactId>cloudinary-http5</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cloudinary</groupId>
+            <artifactId>cloudinary-taglib</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>2.2.4</version>
+        </dependency>
+
+
+
     </dependencies>
 
     <build>

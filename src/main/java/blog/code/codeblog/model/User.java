@@ -49,9 +49,11 @@ public class User implements UserDetails {
 
     private UserRoles role;
 
-    @Lob
-    @Column(name = "photo")
-    private byte[] photo;
+    @Column(name = "url_profile_pic")
+    private String urlProfilePic;
+
+    @Column(name = "profile_pic_id")
+    private String profilePicId;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -91,5 +93,7 @@ public class User implements UserDetails {
 
     // TODO: Replace raw favorite post UUIDs with a proper JPA mapping (e.g., @ManyToMany to Post)
     private List<UUID> favoritePosts = new ArrayList<>();
+
+
 
 }

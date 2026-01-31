@@ -22,7 +22,7 @@ public class AutheticationController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public String register(@RequestBody @Valid CreateUserDTO user) {
+    public String register(@ModelAttribute @Valid CreateUserDTO user) {
         log.info("Register request received for user {}", user.email());
         return authorizationService.register(user);
     }

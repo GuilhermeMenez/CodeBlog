@@ -6,17 +6,21 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
 @Entity
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "TB_POST")
 public class Post {
     @Id
@@ -40,5 +44,14 @@ public class Post {
     private User user;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<Comment> comments = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "TB_POST_IMAGES", joinColumns = @JoinColumn(name = "post_id"))
+    @MapKeyColumn(name = "public_id")
+    @Column(name = "image_url")
+    @Builder.Default
+    private Map<String, String> images = new HashMap<>();
+
 }

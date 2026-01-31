@@ -6,7 +6,7 @@ import blog.code.codeblog.dto.post.PutPostDTO;
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.service.interfaces.PostService;
 import jakarta.validation.Valid;
-import org.slf4j.Logger;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -14,12 +14,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-
+@Slf4j
 @RestController
 @RequestMapping("/post")
 public class PostController {
 
-    private static final Logger log = org.slf4j.LoggerFactory.getLogger(PostController.class);
     @Autowired
     PostService postService;
 
@@ -47,7 +46,7 @@ public class PostController {
 
     @PostMapping("/newpost")
     @ResponseStatus(HttpStatus.CREATED)
-    public String createPost(@RequestBody @Valid CreatePostRequestDTO post) {
+    public String createPost(@ModelAttribute @Valid CreatePostRequestDTO post) {
         log.info("Create post request received: {}", post);
         return postService.save(post);
     }

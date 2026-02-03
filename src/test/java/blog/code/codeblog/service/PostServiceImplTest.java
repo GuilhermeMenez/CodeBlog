@@ -14,6 +14,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -212,29 +215,58 @@ class PostServiceImplTest {
     @DisplayName("Should get all posts for user")
     void getAllUserPostsShouldReturnPosts() {
         UUID userId = UUID.randomUUID();
-        Post post1 = new Post();
-        post1.setTitle("First Post");
-        Post post2 = new Post();
-        post2.setTitle("Second Post");
+        int page = 0;
+        int size = 10;
         User user = new User();
-        user.setPosts(List.of(post1, post2));
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        List<Post> result = postService.getAllUserPosts(userId);
+        user.setId(userId);
+        user.setName("Test User");
+
+        Post post1 = new Post();
+        post1.setId(UUID.randomUUID());
+        post1.setTitle("First Post");
+        post1.setContent("Content 1");
+        post1.setAuthor("Test User");
+        post1.setDate(java.time.LocalDate.now());
+        post1.setUser(user);
+
+        Post post2 = new Post();
+        post2.setId(UUID.randomUUID());
+        post2.setTitle("Second Post");
+        post2.setContent("Content 2");
+        post2.setAuthor("Test User");
+        post2.setDate(java.time.LocalDate.now());
+        post2.setUser(user);
+
+        Page<Post> postPage = new PageImpl<>(List.of(post1, post2), PageRequest.of(page, size), 2);
+
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(postRepository.findByAuthorId(eq(userId), any())).thenReturn(postPage);
+
+        var result = postService.getAllUserPosts(userId, page, size);
+
         assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals("First Post", result.get(0).getTitle());
-        assertEquals("Second Post", result.get(1).getTitle());
-        verify(userRepository).findById(userId);
+        assertEquals(2, result.content().size());
+        assertEquals("First Post", result.content().get(0).title());
+        assertEquals("Second Post", result.content().get(1).title());
+        assertEquals(0, result.currentPage());
+        assertEquals(1, result.totalPages());
+        assertEquals(2, result.totalElements());
+        assertTrue(result.first());
+        assertTrue(result.last());
+        verify(userRepository).existsById(userId);
+        verify(postRepository).findByAuthorId(eq(userId), any());
     }
 
     @Test
     @DisplayName("Should throw RuntimeException when user not found for getAllUserPosts")
     void getAllUserPostsUserNotFoundShouldThrow() {
         UUID userId = UUID.randomUUID();
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> postService.getAllUserPosts(userId));
+        int page = 0;
+        int size = 10;
+        when(userRepository.existsById(userId)).thenReturn(false);
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> postService.getAllUserPosts(userId, page, size));
         assertEquals("User not found", exception.getMessage());
-        verify(userRepository).findById(userId);
+        verify(userRepository).existsById(userId);
     }
 
     @Test
@@ -291,7 +323,7 @@ class PostServiceImplTest {
         when(postRepository.findById(postId)).thenReturn(Optional.of(post));
         when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var result = postService.saveuploadedImage(postId, imageUrl, publicId);
+        var result = postService.saveUploadedImage(postId, imageUrl, publicId);
 
         assertNotNull(result);
         assertEquals("Image uploaded", result.message());
@@ -313,7 +345,7 @@ class PostServiceImplTest {
         when(postRepository.findById(postId)).thenReturn(Optional.empty());
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
-            () -> postService.saveuploadedImage(postId, imageUrl, publicId));
+            () -> postService.saveUploadedImage(postId, imageUrl, publicId));
 
         assertEquals("Post não encontrado", exception.getMessage());
         verify(postRepository).findById(postId);

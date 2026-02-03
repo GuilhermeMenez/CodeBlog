@@ -2,6 +2,7 @@ package blog.code.codeblog.repository;
 
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.model.User;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -23,4 +24,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     @Query("SELECT p FROM Post p JOIN p.images i WHERE KEY(i) = :publicId")
     Optional<Post> findByImagePublicId(@Param("publicId") String publicId);
+
+    @Query("SELECT p FROM Post p WHERE p.user.id = :userId ORDER BY p.date DESC")
+    Page<Post> findByAuthorId(@Param("userId") UUID userId, Pageable pageable);
 }

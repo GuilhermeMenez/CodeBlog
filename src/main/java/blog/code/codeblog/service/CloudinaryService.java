@@ -69,7 +69,7 @@ public class CloudinaryService {
         return switch (flag) {
             case POST -> {
                 log.info("Processing as POST_IMAGE for post: {}", postId);
-                yield postServiceImpl.saveuploadedImage(UUID.fromString(postId), imageUrl, publicId);
+                yield postServiceImpl.saveUploadedImage(UUID.fromString(postId), imageUrl, publicId);
             }
             case PROFILE -> {
                 log.info("Processing as USER_AVATAR for user: {}", userId);

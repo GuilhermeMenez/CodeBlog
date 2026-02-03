@@ -1,13 +1,18 @@
 package blog.code.codeblog.service;
 
+import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
 import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
 import blog.code.codeblog.dto.follow.FollowUnfollowRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
+import blog.code.codeblog.dto.user.UserFollowDTO;
+import blog.code.codeblog.dto.user.UserResponseDTO;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -24,9 +29,30 @@ public class UserService {
     @Autowired
     PasswordEncoder bCryptPasswordEncoder;
 
-    public Optional<User> findById(UUID userId){
-        log.info("[findById] Attempting to find user with id: {}", userId);
-        return userRepository.findById(userId);
+    public Optional<User> findById(UUID id) {
+        log.info("[findById] Finding user by id: {}", id);
+        return userRepository.findById(id);
+    }
+
+    public UserResponseDTO findUserById(UUID id) {
+        log.info("[findByIdAsDTO] Finding user by id: {}", id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("[findByIdAsDTO] User not found. id: {}", id);
+                    return new EntityNotFoundException("User not found with id: " + id);
+                });
+        return convertToUserResponseDTO(user);
+    }
+
+    private UserResponseDTO convertToUserResponseDTO(User user) {
+        return UserResponseDTO.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .login(user.getLogin())
+                .urlProfilePic(user.getUrlProfilePic())
+                .followersCount(user.getFollowers() != null ? user.getFollowers().size() : 0)
+                .followingCount(user.getFollowing() != null ? user.getFollowing().size() : 0)
+                .build();
     }
 
     public User findByLogin(String login){
@@ -54,7 +80,10 @@ public class UserService {
 
         userRepository.save(existingUser);
         log.info("[updateUser] User updated successfully. id: {}", id);
-        return new UpdateUserResponseDTO(existingUser.getName(), existingUser.getLogin());
+        return UpdateUserResponseDTO.builder()
+                .name(existingUser.getName())
+                .email(existingUser.getLogin())
+                .build();
     }
 
     public void deleteUser(UUID userId){
@@ -78,7 +107,11 @@ public class UserService {
         existingUser.setProfilePicId(profilePicId);
         userRepository.save(existingUser);
         log.info("[updateProfilePic] Profile pic updated successfully. id for user: {}", existingUser.getLogin());
-        return new ImageUploadResponseDTO("Profile pic updated successfully",profilePicUrl, profilePicId);
+        return ImageUploadResponseDTO.builder()
+                .message("Profile pic updated successfully")
+                .imageUrl(profilePicUrl)
+                .publicId(profilePicId)
+                .build();
     }
 
 
@@ -126,6 +159,59 @@ public class UserService {
             return true;
         }
         return false;
+    }
+
+    public PageResponseDTO<UserFollowDTO> getFollowers(UUID userId, Pageable pageable) {
+        log.info("[getFollowers] Getting followers for user id: {} (page: {}, size: {})", userId, pageable.getPageNumber(), pageable.getPageSize());
+
+        if (!userRepository.existsById(userId)) {
+            log.warn("[getFollowers] User not found. id: {}", userId);
+            throw new EntityNotFoundException("User not found with id: " + userId);
+        }
+
+        Page<User> followersPage = userRepository.findFollowersByUserId(userId, pageable);
+
+        return PageResponseDTO.<UserFollowDTO>builder()
+                .content(followersPage.getContent().stream().map(this::convertToUserFollowDTO).toList())
+                .currentPage(followersPage.getNumber())
+                .totalPages(followersPage.getTotalPages())
+                .totalElements(followersPage.getTotalElements())
+                .size(followersPage.getSize())
+                .first(followersPage.isFirst())
+                .last(followersPage.isLast())
+                .empty(followersPage.isEmpty())
+                .build();
+    }
+
+    public PageResponseDTO<UserFollowDTO> getFollowing(UUID userId, Pageable pageable) {
+        log.info("[getFollowing] Getting following for user id: {} (page: {}, size: {})", userId, pageable.getPageNumber(), pageable.getPageSize());
+
+        if (!userRepository.existsById(userId)) {
+            log.warn("[getFollowing] User not found. id: {}", userId);
+            throw new EntityNotFoundException("User not found with id: " + userId);
+        }
+
+        Page<User> followingPage = userRepository.findFollowingByUserId(userId, pageable);
+
+        return PageResponseDTO.<UserFollowDTO>builder()
+                .content(followingPage.getContent().stream().map(this::convertToUserFollowDTO).toList())
+                .currentPage(followingPage.getNumber())
+                .totalPages(followingPage.getTotalPages())
+                .totalElements(followingPage.getTotalElements())
+                .size(followingPage.getSize())
+                .first(followingPage.isFirst())
+                .last(followingPage.isLast())
+                .empty(followingPage.isEmpty())
+                .build();
+    }
+
+    private UserFollowDTO convertToUserFollowDTO(User user) {
+        return UserFollowDTO.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .login(user.getLogin())
+                .urlProfilePic(user.getUrlProfilePic())
+                .build();
     }
 
 }

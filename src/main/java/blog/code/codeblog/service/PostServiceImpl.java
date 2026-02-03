@@ -1,5 +1,6 @@
 package blog.code.codeblog.service;
 
+import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
 import blog.code.codeblog.dto.comment.CommentResponseDTO;
 import blog.code.codeblog.dto.post.*;
@@ -14,6 +15,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -26,7 +28,6 @@ import java.util.*;
 @Slf4j
 @Service
 public class PostServiceImpl implements PostService {
-
 
     @Autowired
     PostRepository postRepository;
@@ -51,33 +52,6 @@ public class PostServiceImpl implements PostService {
                 .toList();
     }
 
-
-    private PostResponseDTO convertToPostResponseDTO(Post post) {
-        return new PostResponseDTO(
-                post.getId(),
-                post.getTitle(),
-                post.getContent(),
-                new PostAuthorDTO(
-                        post.getUser().getId(),
-                        post.getUser().getName()
-                ),
-                post.getDate(),
-                post.getComments().stream()
-                        .map(this::convertToCommentResponseDTO)
-                        .toList()
-        );
-    }
-
-
-    private CommentResponseDTO convertToCommentResponseDTO(Comment comment) {
-        return new CommentResponseDTO(
-                comment.getId(),
-                comment.getContent(),
-                comment.getAutor(),
-                comment.getCreatedAt()
-        );
-    }
-
     @Override
     public PostResponseDTO findById(UUID id) {
         log.info("[findById] Attempting to find post with id: {}", id);
@@ -91,7 +65,6 @@ public class PostServiceImpl implements PostService {
     private Optional<Post> findEntityById(UUID id) {
         return postRepository.findById(id);
     }
-
 
     @Override
     public String save(CreatePostRequestDTO post) {
@@ -147,9 +120,8 @@ public class PostServiceImpl implements PostService {
         log.info("[deletePost] Post deleted successfully. postId: {}", postId);
     }
 
-
     @Override
-    public List<Post> getBalancedFeed(UUID userId, int page, int size) {
+    public List<PostResponseDTO> getBalancedFeed(UUID userId, int page, int size) {
         log.info("[getBalancedFeed] Getting balanced feed for userId: {} (page: {}, size: {})", userId, page, size);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> {
@@ -173,18 +145,37 @@ public class PostServiceImpl implements PostService {
 
         Collections.shuffle(combined);
 
-        return combined;
+        return combined.stream()
+                .map(this::convertToPostResponseDTO)
+                .toList();
     }
 
     @Override
-    public List<Post> getAllUserPosts(UUID userId) throws RuntimeException {
-        log.info("[getAllUserPosts] Getting all posts for userId: {}", userId);
-        return userRepository.findById(userId)
-                .map(User::getPosts)
-                .orElseThrow(() -> {
-                    log.warn("[getAllUserPosts] User not found. userId: {}", userId);
-                    return new RuntimeException("User not found");
-                });
+    public PageResponseDTO<PostResponseDTO> getAllUserPosts(UUID userId, int page, int size) throws EntityNotFoundException {
+        log.info("[getAllUserPosts] Getting all posts for userId: {} (page: {}, size: {})", userId, page, size);
+
+        if (!userRepository.existsById(userId)) {
+            log.warn("[getAllUserPosts] User not found. userId: {}", userId);
+            throw new EntityNotFoundException("User not found");
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Post> postPage = postRepository.findByAuthorId(userId, pageable);
+
+        List<PostResponseDTO> content = postPage.getContent().stream()
+                .map(this::convertToPostResponseDTO)
+                .toList();
+
+        return PageResponseDTO.<PostResponseDTO>builder()
+                .content(content)
+                .currentPage(postPage.getNumber())
+                .totalPages(postPage.getTotalPages())
+                .totalElements(postPage.getTotalElements())
+                .size(postPage.getSize())
+                .first(postPage.isFirst())
+                .last(postPage.isLast())
+                .empty(postPage.isEmpty())
+                .build();
     }
 
     @Override
@@ -207,7 +198,7 @@ public class PostServiceImpl implements PostService {
         return convertToPostResponseDTO(existingPost);
     }
 
-    public ImageUploadResponseDTO saveuploadedImage(UUID postId, String imageUrl, String publicId) {
+    public ImageUploadResponseDTO saveUploadedImage(UUID postId, String imageUrl, String publicId) {
         log.info("[uploadImage] Uploading image for: {}", postId);
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> {
@@ -217,9 +208,12 @@ public class PostServiceImpl implements PostService {
         post.getImages().put(publicId, imageUrl);
         postRepository.save(post);
         log.info("[uploadImage] Image uploaded for postId: {}", postId);
-        return new ImageUploadResponseDTO("Image uploaded", imageUrl, publicId);
+        return ImageUploadResponseDTO.builder()
+                .message("Image uploaded")
+                .imageUrl(imageUrl)
+                .publicId(publicId)
+                .build();
     }
-
 
     public Post getReference(UUID id) {
         return postRepository.getReferenceById(id);
@@ -236,6 +230,29 @@ public class PostServiceImpl implements PostService {
             return true;
         }
         return false;
+    }
+
+    private PostResponseDTO convertToPostResponseDTO(Post post) {
+        return PostResponseDTO.builder()
+                .postId(post.getId())
+                .title(post.getTitle())
+                .content(post.getContent())
+                .author(PostAuthorDTO.builder()
+                        .id(post.getUser().getId())
+                        .name(post.getUser().getName())
+                        .build())
+                .createdAt(post.getDate())
+                .images(post.getImages())
+                .build();
+    }
+
+    private CommentResponseDTO convertToCommentResponseDTO(Comment comment) {
+        return CommentResponseDTO.builder()
+                .id(comment.getId())
+                .content(comment.getContent())
+                .author(comment.getAutor())
+                .createdAt(comment.getCreatedAt())
+                .build();
     }
 
 }

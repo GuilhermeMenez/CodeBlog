@@ -55,14 +55,6 @@ public class User implements UserDetails {
     @Column(name = "profile_pic_id")
     private String profilePicId;
 
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        if (role == UserRoles.ADMIN) {
-            return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
-                    new SimpleGrantedAuthority("ROLE_USER"));
-        }else
-            return List.of(new SimpleGrantedAuthority("ROLE_USER"));
-    }
 
     @Override
     public String getUsername() {
@@ -93,6 +85,17 @@ public class User implements UserDetails {
 
     // TODO: Replace raw favorite post UUIDs with a proper JPA mapping (e.g., @ManyToMany to Post)
     private List<UUID> favoritePosts = new ArrayList<>();
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        if (role == UserRoles.ADMIN) {
+            return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
+                    new SimpleGrantedAuthority("ROLE_USER"));
+        }else
+            return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+    }
+
+
 
 
 

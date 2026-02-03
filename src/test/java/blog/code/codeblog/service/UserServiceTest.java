@@ -3,6 +3,7 @@ package blog.code.codeblog.service;
 import blog.code.codeblog.dto.follow.FollowUnfollowRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
+import blog.code.codeblog.dto.user.UserFollowDTO;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -12,6 +13,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
@@ -293,5 +297,97 @@ class UserServiceTest {
         assertFalse(result);
         verify(userRepository).findByProfilePicId(publicId);
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should get followers successfully with pagination")
+    void getFollowersSuccess() {
+        UUID userId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        User follower1 = new User();
+        follower1.setId(UUID.randomUUID());
+        follower1.setName("Follower 1");
+        follower1.setLogin("follower1@email.com");
+        follower1.setUrlProfilePic("https://cloudinary.com/pic1.jpg");
+
+        User follower2 = new User();
+        follower2.setId(UUID.randomUUID());
+        follower2.setName("Follower 2");
+        follower2.setLogin("follower2@email.com");
+
+        User user = new User();
+        user.setId(userId);
+        user.getFollowers().add(follower1);
+        user.getFollowers().add(follower2);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        Page<UserFollowDTO> result = userService.getFollowers(userId, pageable);
+
+        assertNotNull(result);
+        assertEquals(2, result.getTotalElements());
+        verify(userRepository).findById(userId);
+    }
+
+    @Test
+    @DisplayName("Should throw EntityNotFoundException when getting followers for non-existent user")
+    void getFollowersUserNotFound() {
+        UUID userId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+            () -> userService.getFollowers(userId, pageable));
+
+        assertEquals("User not found with id: " + userId, exception.getMessage());
+        verify(userRepository).findById(userId);
+    }
+
+    @Test
+    @DisplayName("Should get following successfully with pagination")
+    void getFollowingSuccess() {
+        UUID userId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        User following1 = new User();
+        following1.setId(UUID.randomUUID());
+        following1.setName("Following 1");
+        following1.setLogin("following1@email.com");
+        following1.setUrlProfilePic("https://cloudinary.com/pic1.jpg");
+
+        User following2 = new User();
+        following2.setId(UUID.randomUUID());
+        following2.setName("Following 2");
+        following2.setLogin("following2@email.com");
+
+        User user = new User();
+        user.setId(userId);
+        user.getFollowing().add(following1);
+        user.getFollowing().add(following2);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        Page<UserFollowDTO> result = userService.getFollowing(userId, pageable);
+
+        assertNotNull(result);
+        assertEquals(2, result.getTotalElements());
+        verify(userRepository).findById(userId);
+    }
+
+    @Test
+    @DisplayName("Should throw EntityNotFoundException when getting following for non-existent user")
+    void getFollowingUserNotFound() {
+        UUID userId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+            () -> userService.getFollowing(userId, pageable));
+
+        assertEquals("User not found with id: " + userId, exception.getMessage());
+        verify(userRepository).findById(userId);
     }
 }

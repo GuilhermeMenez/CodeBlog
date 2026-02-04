@@ -1,9 +1,9 @@
 package blog.code.codeblog.controller;
 
+import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.post.PutPostDTO;
 import blog.code.codeblog.dto.post.CreatePostRequestDTO;
 import blog.code.codeblog.dto.post.PostResponseDTO;
-import blog.code.codeblog.model.Post;
 import blog.code.codeblog.service.interfaces.PostService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -11,10 +11,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -27,47 +29,86 @@ class PostControllerTest {
     @InjectMocks
     private PostController postController;
 
-    Post mockPost1;
-    Post mockPost2;
-    List<Post> mockPostList;
+    PostResponseDTO mockPost1;
+    PostResponseDTO mockPost2;
+    List<PostResponseDTO> mockPostList;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        mockPost1 = new Post();
-        mockPost1.setId(UUID.randomUUID());
-        mockPost1.setTitle("Primeiro Post");
-        mockPost1.setAuthor("Autor 1");
-        mockPost1.setContent("Conteúdo do primeiro post");
-        mockPost1.setDate(LocalDate.of(2024, 7, 29));
 
-        mockPost2 = new Post();
-        mockPost2.setId(UUID.randomUUID());
-        mockPost2.setTitle("Segundo Post");
-        mockPost2.setAuthor("Autor 2");
-        mockPost2.setContent("Conteúdo do segundo post");
-        mockPost2.setDate(LocalDate.of(2024, 7, 28));
+        mockPost1 = PostResponseDTO.builder()
+                .postId(UUID.randomUUID())
+                .title("Primeiro Post")
+                .content("Conteúdo do primeiro post")
+                .author(null)
+                .createdAt(LocalDate.of(2024, 7, 29))
+                .images(Map.of())
+                .build();
 
-        mockPostList = Arrays.asList(mockPost1, mockPost2);
+        mockPost2 = PostResponseDTO.builder()
+                .postId(UUID.randomUUID())
+                .title("Segundo Post")
+                .content("Conteúdo do segundo post")
+                .author(null)
+                .createdAt(LocalDate.of(2024, 7, 28))
+                .images(Map.of())
+                .build();
+
+        mockPostList = List.of(mockPost1, mockPost2);
     }
 
     @Test
-    @DisplayName("Should return all posts for a specific user (mock)")
+    @DisplayName("Should return all posts for a specific user")
     void getAllUserPosts() {
         UUID userId = UUID.randomUUID();
-        when(postService.getAllUserPosts(userId)).thenReturn(mockPostList);
+        int page = 0;
+        int size = 10;
 
-        List<Post> result = postController.getAllUserPosts(userId);
+        PageResponseDTO<PostResponseDTO> pageResponse = PageResponseDTO.<PostResponseDTO>builder()
+                .content(mockPostList)
+                .currentPage(0)
+                .totalPages(1)
+                .totalElements(2)
+                .size(10)
+                .first(true)
+                .last(true)
+                .empty(false)
+                .build();
+
+        when(postService.getAllUserPosts(userId, page, size)).thenReturn(pageResponse);
+
+        PageResponseDTO<PostResponseDTO> result = postController.getAllUserPosts(userId, page, size);
+
         assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals("Primeiro Post", result.get(0).getTitle());
-        assertEquals("Segundo Post", result.get(1).getTitle());
-
-        verify(postService, times(1)).getAllUserPosts(userId);
+        assertEquals(2, result.content().size());
+        assertEquals("Primeiro Post", result.content().get(0).title());
+        assertEquals("Segundo Post", result.content().get(1).title());
+        assertTrue(result.first());
+        assertTrue(result.last());
+        assertEquals(0, result.currentPage());
+        assertEquals(1, result.totalPages());
+        verify(postService, times(1)).getAllUserPosts(userId, page, size);
     }
 
+//    @Test
+//    @DisplayName("Should return balanced feed for a user")
+//    void getBalancedFeed() {
+//        UUID userId = UUID.randomUUID();
+//        int page = 0;
+//        int size = 10;
+//        when(postService.getBalancedFeed(userId, page, size)).thenReturn(mockPostList);
+//
+//        List<PostResponseDTO> result = postController.getBalancedFeed(userId, page, size);
+//
+//        assertNotNull(result);
+//        assertEquals(2, result.size());
+//        assertEquals("Primeiro Post", result.get(0).title());
+//        verify(postService, times(1)).getBalancedFeed(userId, page, size);
+//    }
+
     @Test
-    @DisplayName("Should create a new post (mock)")
+    @DisplayName("Should create a new post")
     void createPost() {
         CreatePostRequestDTO requestDTO = new CreatePostRequestDTO(
                 "First Post",
@@ -87,15 +128,25 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("Should update a post (mock)")
+    @DisplayName("Should update a post")
     void updatePost() {
         UUID postId = UUID.randomUUID();
         PutPostDTO updatedPost = new PutPostDTO("New Title", "New Content", UUID.randomUUID(), UUID.randomUUID());
 
-        PostResponseDTO mockUpdatedPost = new PostResponseDTO(postId, "New Title", "New Content", null, LocalDate.now(), List.of());
+        PostResponseDTO mockUpdatedPost = PostResponseDTO.builder()
+                .postId(postId)
+                .title("New Title")
+                .content("New Content")
+                .author(null)
+                .createdAt(LocalDate.now())
+                .images(Map.of())
+                .build();
         when(postService.updatePost(postId, updatedPost)).thenReturn(mockUpdatedPost);
 
-        assertDoesNotThrow(() -> postController.updatePost(postId, updatedPost));
+        PostResponseDTO result = postController.updatePost(postId, updatedPost);
+
+        assertNotNull(result);
+        assertEquals("New Title", result.title());
         verify(postService, times(1)).updatePost(postId, updatedPost);
     }
 
@@ -115,7 +166,7 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("Should delete a post (mock)")
+    @DisplayName("Should delete a post")
     void deletePost() {
         UUID postId = UUID.randomUUID();
         String token = UUID.randomUUID().toString();
@@ -124,6 +175,5 @@ class PostControllerTest {
         assertDoesNotThrow(() -> postController.deletePost(postId, token));
         verify(postService, times(1)).deletePost(postId, token);
     }
-
 
 }

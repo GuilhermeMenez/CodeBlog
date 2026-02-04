@@ -1,9 +1,9 @@
 package blog.code.codeblog.controller;
 
+import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.post.CreatePostRequestDTO;
 import blog.code.codeblog.dto.post.PostResponseDTO;
 import blog.code.codeblog.dto.post.PutPostDTO;
-import blog.code.codeblog.model.Post;
 import blog.code.codeblog.service.interfaces.PostService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -24,25 +24,30 @@ public class PostController {
 
     @GetMapping(value = "userPosts/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public List<Post> getAllUserPosts(@PathVariable("id") UUID userid) {
-        log.info("Get all user posts request received for user {}", userid);
-        return postService.getAllUserPosts(userid);
+    public PageResponseDTO<PostResponseDTO> getAllUserPosts(
+            @PathVariable("id") UUID userid,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("Get all user posts request received for user {} (page: {}, size: {})", userid, page, size);
+        return postService.getAllUserPosts(userid, page, size);
     }
 
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public PostResponseDTO getPostsbyId(@PathVariable("id") UUID id) {
+    public PostResponseDTO getPostbyId(@PathVariable("id") UUID id) {
         log.info("Get post by id request received for post {}", id);
         return postService.findById(id);
     }
-
-    @GetMapping("feed/{userId}")
-    public List<Post> getBalancedFeed(
-            @PathVariable UUID userId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return postService.getBalancedFeed(userId, page, size);
-    }
+//    //todo alterar posteriormente
+//    @GetMapping("feed/{userId}")
+//    @ResponseStatus(HttpStatus.OK)
+//    public List<PostResponseDTO> getBalancedFeed(
+//            @PathVariable UUID userId,
+//            @RequestParam(defaultValue = "0") int page,
+//            @RequestParam(defaultValue = "10") int size) {
+//        log.info("Get balanced feed request received for user {} (page: {}, size: {})", userId, page, size);
+//        return postService.getBalancedFeed(userId, page, size);
+//    }
 
     @PostMapping("/newpost")
     @ResponseStatus(HttpStatus.CREATED)

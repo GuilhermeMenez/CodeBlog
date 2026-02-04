@@ -23,7 +23,7 @@ public class CommentController {
     log.info("Create comment request received: {}", comment);
         return commentService.saveComment(comment);
     }
-    @PutMapping("Update/{id}")
+    @PutMapping("update/{id}")
     @ResponseStatus(HttpStatus.OK)
     public CommentResponseDTO updateComment(@PathVariable("id") UUID id, @RequestBody CommentDTO comment) {
         log.info("Update comment request received: {}", comment);

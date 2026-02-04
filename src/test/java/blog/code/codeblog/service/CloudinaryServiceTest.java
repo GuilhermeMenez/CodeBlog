@@ -98,7 +98,7 @@ class CloudinaryServiceTest {
 
         when(cloudinary.uploader()).thenReturn(uploader);
         when(uploader.upload(any(byte[].class), anyMap())).thenReturn(uploadResponse);
-        when(postServiceImpl.saveuploadedImage(eq(postId), eq(imageUrl), eq(publicId)))
+        when(postServiceImpl.saveUploadedImage(eq(postId), eq(imageUrl), eq(publicId)))
                 .thenReturn(expectedResponse);
 
         ImageUploadResponseDTO result = cloudinaryService.uploadFile(file, FlowImageFlag.POST, null, postId.toString());
@@ -108,7 +108,7 @@ class CloudinaryServiceTest {
         assertEquals(expectedResponse.imageUrl(), result.imageUrl());
         assertEquals(expectedResponse.publicId(), result.publicId());
         verify(cloudinary.uploader()).upload(any(byte[].class), anyMap());
-        verify(postServiceImpl).saveuploadedImage(eq(postId), eq(imageUrl), eq(publicId));
+        verify(postServiceImpl).saveUploadedImage(eq(postId), eq(imageUrl), eq(publicId));
     }
 
     @Test

@@ -10,8 +10,6 @@ import java.util.UUID;
 
 
 import java.util.*;
-
-@Data
 @Setter
 @Getter
 @AllArgsConstructor
@@ -55,6 +53,24 @@ public class User implements UserDetails {
     @Column(name = "profile_pic_id")
     private String profilePicId;
 
+
+    @Override
+    public String getUsername() {
+        return this.login;
+    }
+
+    @OneToMany(mappedBy = "followed", fetch = FetchType.LAZY)
+    private Set<UserFollow> followers = new HashSet<>();
+
+    @OneToMany(mappedBy = "follower", fetch = FetchType.LAZY)
+    private Set<UserFollow> following = new HashSet<>();
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<Post> posts = new ArrayList<>();
+
+    // TODO: Replace raw favorite post UUIDs with a proper JPA mapping (e.g., @ManyToMany to Post)
+    private List<UUID> favoritePosts = new ArrayList<>();
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         if (role == UserRoles.ADMIN) {
@@ -64,35 +80,7 @@ public class User implements UserDetails {
             return List.of(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
-    @Override
-    public String getUsername() {
-        return this.login;
-    }
 
-    public void addFollower(User user){
-        this.followers.add(user);
-    }
-
-    public void removeFollower(User user){
-        this.followers.remove(user);
-    }
-
-    @ManyToMany
-    @JoinTable(
-            name = "tb_user_followers",
-            joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id", columnDefinition = "uuid"),
-            inverseJoinColumns = @JoinColumn(name = "follower_id", referencedColumnName = "id", columnDefinition = "uuid")
-    )
-    private Set<User> followers = new HashSet<>();
-
-    @ManyToMany(mappedBy = "followers")
-    private Set<User> following = new HashSet<>();
-
-    @OneToMany(mappedBy = "user")
-    private List<Post> posts;
-
-    // TODO: Replace raw favorite post UUIDs with a proper JPA mapping (e.g., @ManyToMany to Post)
-    private List<UUID> favoritePosts = new ArrayList<>();
 
 
 

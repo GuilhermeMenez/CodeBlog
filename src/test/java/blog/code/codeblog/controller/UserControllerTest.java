@@ -1,5 +1,6 @@
 package blog.code.codeblog.controller;
 
+import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
 import blog.code.codeblog.dto.user.UserFollowDTO;
@@ -13,8 +14,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
@@ -44,8 +43,8 @@ class UserControllerTest {
                 .name("testuser")
                 .login("testuser@email.com")
                 .urlProfilePic("https://pic.jpg")
-                .followersCount(10)
-                .followingCount(5)
+                .followersCount(10L)
+                .followingCount(5L)
                 .build();
     }
 
@@ -68,8 +67,8 @@ class UserControllerTest {
         assertNotNull(result);
         assertEquals("testuser", result.name());
         assertEquals("testuser@email.com", result.login());
-        assertEquals(10, result.followersCount());
-        assertEquals(5, result.followingCount());
+        assertEquals(10L, result.followersCount());
+        assertEquals(5L, result.followingCount());
         verify(userService, times(1)).findUserById(testUserId);
     }
 
@@ -121,16 +120,25 @@ class UserControllerTest {
                 .login("follower2@email.com")
                 .urlProfilePic("https://pic.jpg")
                 .build();
-        Page<UserFollowDTO> followersPage = new PageImpl<>(List.of(follower1, follower2), pageable, 2);
+        PageResponseDTO<UserFollowDTO> followersPage = PageResponseDTO.<UserFollowDTO>builder()
+                .content(List.of(follower1, follower2))
+                .currentPage(0)
+                .totalPages(1)
+                .totalElements(2)
+                .size(10)
+                .first(true)
+                .last(true)
+                .empty(false)
+                .build();
 
         when(userService.getFollowers(testUserId, pageable)).thenReturn(followersPage);
 
-        Page<UserFollowDTO> result = userController.getFollowers(testUserId, page, size);
+        PageResponseDTO<UserFollowDTO> result = userController.getFollowers(testUserId, page, size);
 
         assertNotNull(result);
-        assertEquals(2, result.getTotalElements());
-        assertEquals("Follower 1", result.getContent().get(0).name());
-        assertEquals("Follower 2", result.getContent().get(1).name());
+        assertEquals(2, result.totalElements());
+        assertEquals("Follower 1", result.content().get(0).name());
+        assertEquals("Follower 2", result.content().get(1).name());
         verify(userService, times(1)).getFollowers(testUserId, pageable);
     }
 
@@ -153,16 +161,25 @@ class UserControllerTest {
                 .login("following2@email.com")
                 .urlProfilePic("https://pic.jpg")
                 .build();
-        Page<UserFollowDTO> followingPage = new PageImpl<>(List.of(following1, following2), pageable, 2);
+        PageResponseDTO<UserFollowDTO> followingPage = PageResponseDTO.<UserFollowDTO>builder()
+                .content(List.of(following1, following2))
+                .currentPage(0)
+                .totalPages(1)
+                .totalElements(2)
+                .size(10)
+                .first(true)
+                .last(true)
+                .empty(false)
+                .build();
 
         when(userService.getFollowing(testUserId, pageable)).thenReturn(followingPage);
 
-        Page<UserFollowDTO> result = userController.getFollowing(testUserId, page, size);
+        PageResponseDTO<UserFollowDTO> result = userController.getFollowing(testUserId, page, size);
 
         assertNotNull(result);
-        assertEquals(2, result.getTotalElements());
-        assertEquals("Following 1", result.getContent().get(0).name());
-        assertEquals("Following 2", result.getContent().get(1).name());
+        assertEquals(2, result.totalElements());
+        assertEquals("Following 1", result.content().get(0).name());
+        assertEquals("Following 2", result.content().get(1).name());
         verify(userService, times(1)).getFollowing(testUserId, pageable);
     }
 

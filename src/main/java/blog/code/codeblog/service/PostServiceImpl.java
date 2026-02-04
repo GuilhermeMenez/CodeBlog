@@ -120,35 +120,35 @@ public class PostServiceImpl implements PostService {
         log.info("[deletePost] Post deleted successfully. postId: {}", postId);
     }
 
-    @Override
-    public List<PostResponseDTO> getBalancedFeed(UUID userId, int page, int size) {
-        log.info("[getBalancedFeed] Getting balanced feed for userId: {} (page: {}, size: {})", userId, page, size);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.warn("[getBalancedFeed] User not found. userId: {}", userId);
-                    return new RuntimeException("User not found");
-                });
-        Set<User> following = user.getFollowing();
-
-        int recentSize = (int) (size * 0.7);
-        int randomSize = size - recentSize;
-
-        Pageable recentPageable = PageRequest.of(page, recentSize);
-        Pageable randomPageable = PageRequest.of(page, randomSize);
-
-        List<Post> recentPosts = postRepository.findRecentPosts(following, recentPageable);
-        List<Post> randomPosts = postRepository.findRandomPosts(following, randomPageable);
-
-        List<Post> combined = new ArrayList<>();
-        combined.addAll(recentPosts);
-        combined.addAll(randomPosts);
-
-        Collections.shuffle(combined);
-
-        return combined.stream()
-                .map(this::convertToPostResponseDTO)
-                .toList();
-    }
+//    @Override
+//    public List<PostResponseDTO> getBalancedFeed(UUID userId, int page, int size) {
+//        log.info("[getBalancedFeed] Getting balanced feed for userId: {} (page: {}, size: {})", userId, page, size);
+//        User user = userRepository.findById(userId)
+//                .orElseThrow(() -> {
+//                    log.warn("[getBalancedFeed] User not found. userId: {}", userId);
+//                    return new RuntimeException("User not found");
+//                });
+//        Set<User> following = user.getFollowing();
+//
+//        int recentSize = (int) (size * 0.7);
+//        int randomSize = size - recentSize;
+//
+//        Pageable recentPageable = PageRequest.of(page, recentSize);
+//        Pageable randomPageable = PageRequest.of(page, randomSize);
+//
+//        List<Post> recentPosts = postRepository.findRecentPosts(following, recentPageable);
+//        List<Post> randomPosts = postRepository.findRandomPosts(following, randomPageable);
+//
+//        List<Post> combined = new ArrayList<>();
+//        combined.addAll(recentPosts);
+//        combined.addAll(randomPosts);
+//
+//        Collections.shuffle(combined);
+//
+//        return combined.stream()
+//                .map(this::convertToPostResponseDTO)
+//                .toList();
+//    }
 
     @Override
     public PageResponseDTO<PostResponseDTO> getAllUserPosts(UUID userId, int page, int size) throws EntityNotFoundException {

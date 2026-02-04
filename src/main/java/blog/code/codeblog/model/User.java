@@ -10,8 +10,6 @@ import java.util.UUID;
 
 
 import java.util.*;
-
-@Data
 @Setter
 @Getter
 @AllArgsConstructor
@@ -61,27 +59,14 @@ public class User implements UserDetails {
         return this.login;
     }
 
-    public void addFollower(User user){
-        this.followers.add(user);
-    }
+    @OneToMany(mappedBy = "followed", fetch = FetchType.LAZY)
+    private Set<UserFollow> followers = new HashSet<>();
 
-    public void removeFollower(User user){
-        this.followers.remove(user);
-    }
+    @OneToMany(mappedBy = "follower", fetch = FetchType.LAZY)
+    private Set<UserFollow> following = new HashSet<>();
 
-    @ManyToMany
-    @JoinTable(
-            name = "tb_user_followers",
-            joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id", columnDefinition = "uuid"),
-            inverseJoinColumns = @JoinColumn(name = "follower_id", referencedColumnName = "id", columnDefinition = "uuid")
-    )
-    private Set<User> followers = new HashSet<>();
-
-    @ManyToMany(mappedBy = "followers")
-    private Set<User> following = new HashSet<>();
-
-    @OneToMany(mappedBy = "user")
-    private List<Post> posts;
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<Post> posts = new ArrayList<>();
 
     // TODO: Replace raw favorite post UUIDs with a proper JPA mapping (e.g., @ManyToMany to Post)
     private List<UUID> favoritePosts = new ArrayList<>();

@@ -3,18 +3,21 @@ package blog.code.codeblog.service;
 import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
 import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
-import blog.code.codeblog.dto.follow.FollowUnfollowRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
 import blog.code.codeblog.dto.user.UserFollowDTO;
 import blog.code.codeblog.dto.user.UserResponseDTO;
 import blog.code.codeblog.model.User;
+import blog.code.codeblog.model.UserFollow;
+import blog.code.codeblog.repository.UserFollowRepository;
 import blog.code.codeblog.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +28,9 @@ import lombok.extern.slf4j.Slf4j;
 public class UserService {
     @Autowired
     UserRepository userRepository;
+
+    @Autowired
+    UserFollowRepository userFollowRepository;
 
     @Autowired
     PasswordEncoder bCryptPasswordEncoder;
@@ -50,8 +56,8 @@ public class UserService {
                 .name(user.getName())
                 .login(user.getLogin())
                 .urlProfilePic(user.getUrlProfilePic())
-                .followersCount(user.getFollowers() != null ? user.getFollowers().size() : 0)
-                .followingCount(user.getFollowing() != null ? user.getFollowing().size() : 0)
+                .followersCount(userFollowRepository.countFollowersByUserId(user.getId()))
+                .followingCount(userFollowRepository.countFollowingByUserId(user.getId()))
                 .build();
     }
 
@@ -116,30 +122,58 @@ public class UserService {
 
 
 
-        public boolean handleFollowUnfollow(FollowUnfollowRequestDTO followUnfollowRequestDTO, boolean isFollow){
-        log.info("[handleFollowUnfollow] Attempting to {} user. followerId: {}, followedId: {}", isFollow ? "follow" : "unfollow", followUnfollowRequestDTO.followerId(), followUnfollowRequestDTO.followedId());
-        if (followUnfollowRequestDTO.followedId().equals(followUnfollowRequestDTO.followerId())) {
-            log.warn("[handleFollowUnfollow] Follower and followed are the same user. id: {}", followUnfollowRequestDTO.followerId());
-            return false;
+    @Transactional
+    public void follow(UUID followerId, UUID followedId) {
+        log.info("[follow] Attempting to follow user. followerId: {}, followedId: {}", followerId, followedId);
+
+        validateNotSameUser(followerId, followedId);
+
+        User follower = findUserOrThrow(followerId);
+        User followed = findUserOrThrow(followedId);
+
+        UserFollow userFollow = UserFollow.builder()
+                .follower(follower)
+                .followed(followed)
+                .build();
+
+        try {
+            userFollowRepository.save(userFollow);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("[follow] User already follows this user. followerId: {}, followedId: {}", followerId, followedId);
+            throw new IllegalStateException("User already follows this user");
         }
 
-        boolean result = userRepository.findById(followUnfollowRequestDTO.followerId())
-                .flatMap(follower -> userRepository.findById(followUnfollowRequestDTO.followedId())
-                        .map(followed -> {
-                            if (isFollow) {
-                                followed.addFollower(follower);
-                            } else {
-                                followed.removeFollower(follower);
-                            }
-                            userRepository.save(followed);
-                            log.info("[handleFollowUnfollow] {} operation successful. followerId: {}, followedId: {}", isFollow ? "Follow" : "Unfollow", followUnfollowRequestDTO.followerId(), followUnfollowRequestDTO.followedId());
-                            return true;
-                        }))
-                .orElse(false);
-        if (!result) {
-            log.warn("[handleFollowUnfollow] Could not {} user. followerId: {}, followedId: {}", isFollow ? "follow" : "unfollow", followUnfollowRequestDTO.followerId(), followUnfollowRequestDTO.followedId());
+        log.info("[follow] Follow operation successful. followerId: {}, followedId: {}", followerId, followedId);
+    }
+
+    @Transactional
+    public void unfollow(UUID followerId, UUID followedId) {
+        log.info("[unfollow] Attempting to unfollow user. followerId: {}, followedId: {}", followerId, followedId);
+
+        validateNotSameUser(followerId, followedId);
+
+        if (!userFollowRepository.existsByFollower_IdAndFollowed_Id(followerId, followedId)) {
+            log.warn("[unfollow] User does not follow this user. followerId: {}, followedId: {}", followerId, followedId);
+            throw new IllegalStateException("User does not follow this user");
         }
-        return result;
+
+        userFollowRepository.deleteByFollower_IdAndFollowed_Id(followerId, followedId);
+        log.info("[unfollow] Unfollow operation successful. followerId: {}, followedId: {}", followerId, followedId);
+    }
+
+    private void validateNotSameUser(UUID followerId, UUID followedId) {
+        if (followedId.equals(followerId)) {
+            log.warn("[validateNotSameUser] Follower and followed are the same user. id: {}", followerId);
+            throw new IllegalArgumentException("Cannot follow yourself");
+        }
+    }
+
+    private User findUserOrThrow(UUID userId ) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.warn("[findUserOrThrow] user not found. id: {}", userId);
+                    return new EntityNotFoundException(userId + " not found");
+                });
     }
 
     public User getReference(UUID id){
@@ -169,7 +203,7 @@ public class UserService {
             throw new EntityNotFoundException("User not found with id: " + userId);
         }
 
-        Page<User> followersPage = userRepository.findFollowersByUserId(userId, pageable);
+        Page<User> followersPage = userFollowRepository.findFollowersByUserId(userId, pageable);
 
         return PageResponseDTO.<UserFollowDTO>builder()
                 .content(followersPage.getContent().stream().map(this::convertToUserFollowDTO).toList())
@@ -191,7 +225,7 @@ public class UserService {
             throw new EntityNotFoundException("User not found with id: " + userId);
         }
 
-        Page<User> followingPage = userRepository.findFollowingByUserId(userId, pageable);
+        Page<User> followingPage = userFollowRepository.findFollowingByUserId(userId, pageable);
 
         return PageResponseDTO.<UserFollowDTO>builder()
                 .content(followingPage.getContent().stream().map(this::convertToUserFollowDTO).toList())

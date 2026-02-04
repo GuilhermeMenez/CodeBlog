@@ -91,21 +91,21 @@ class PostControllerTest {
         verify(postService, times(1)).getAllUserPosts(userId, page, size);
     }
 
-    @Test
-    @DisplayName("Should return balanced feed for a user")
-    void getBalancedFeed() {
-        UUID userId = UUID.randomUUID();
-        int page = 0;
-        int size = 10;
-        when(postService.getBalancedFeed(userId, page, size)).thenReturn(mockPostList);
-
-        List<PostResponseDTO> result = postController.getBalancedFeed(userId, page, size);
-
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals("Primeiro Post", result.get(0).title());
-        verify(postService, times(1)).getBalancedFeed(userId, page, size);
-    }
+//    @Test
+//    @DisplayName("Should return balanced feed for a user")
+//    void getBalancedFeed() {
+//        UUID userId = UUID.randomUUID();
+//        int page = 0;
+//        int size = 10;
+//        when(postService.getBalancedFeed(userId, page, size)).thenReturn(mockPostList);
+//
+//        List<PostResponseDTO> result = postController.getBalancedFeed(userId, page, size);
+//
+//        assertNotNull(result);
+//        assertEquals(2, result.size());
+//        assertEquals("Primeiro Post", result.get(0).title());
+//        verify(postService, times(1)).getBalancedFeed(userId, page, size);
+//    }
 
     @Test
     @DisplayName("Should create a new post")

@@ -38,7 +38,6 @@ public class TokenService {
                     .withIssuer("CodeBlog")
                     .withSubject(user.getLogin())
                     .withJWTId(jti)
-                    .withClaim("id", user.getId().toString())
                     .withClaim("name", user.getName())
                     .withExpiresAt(generateExpirationDate())
                     .sign(algorithm);

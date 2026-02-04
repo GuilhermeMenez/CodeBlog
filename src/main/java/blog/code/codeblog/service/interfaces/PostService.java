@@ -13,7 +13,7 @@ public interface PostService {
     PostResponseDTO findById(UUID id);
     String save(CreatePostRequestDTO post);
     void deletePost(UUID postId, String token);
-    List<PostResponseDTO> getBalancedFeed(UUID userId, int page, int size);
+    //List<PostResponseDTO> getBalancedFeed(UUID userId, int page, int size);
     PageResponseDTO<PostResponseDTO> getAllUserPosts(UUID userId, int page, int size);
     PostResponseDTO updatePost(UUID postId, PutPostDTO updatedPost);
 }

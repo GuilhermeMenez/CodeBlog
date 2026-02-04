@@ -1,10 +1,10 @@
 package blog.code.codeblog.service;
 
-import blog.code.codeblog.dto.follow.FollowUnfollowRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
-import blog.code.codeblog.dto.user.UserFollowDTO;
 import blog.code.codeblog.model.User;
+import blog.code.codeblog.model.UserFollow;
+import blog.code.codeblog.repository.UserFollowRepository;
 import blog.code.codeblog.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,10 +14,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,6 +29,8 @@ import static org.mockito.Mockito.*;
 class UserServiceTest {
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private UserFollowRepository userFollowRepository;
     @Mock
     private PasswordEncoder bCryptPasswordEncoder;
     @InjectMocks
@@ -146,69 +150,107 @@ class UserServiceTest {
 
     @Test
     @DisplayName("Should follow user successfully")
-    void handleFollowUserSuccess() {
+    void followUserSuccess() {
         UUID followerId = UUID.randomUUID();
         UUID followedId = UUID.randomUUID();
-        FollowUnfollowRequestDTO dto = new FollowUnfollowRequestDTO(followerId, followedId, true);
-        User follower = mock(User.class);
-        User followed = mock(User.class);
+        User follower = new User();
+        follower.setId(followerId);
+        User followed = new User();
+        followed.setId(followedId);
+
         when(userRepository.findById(followerId)).thenReturn(Optional.of(follower));
         when(userRepository.findById(followedId)).thenReturn(Optional.of(followed));
-        when(userRepository.save(followed)).thenReturn(followed);
-        boolean result = userService.handleFollowUnfollow(dto, true);
-        verify(followed).addFollower(follower);
-        verify(userRepository).save(followed);
-        assertTrue(result);
+        when(userFollowRepository.save(any(UserFollow.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertDoesNotThrow(() -> userService.follow(followerId, followedId));
+
+        verify(userFollowRepository).save(any(UserFollow.class));
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalStateException when already following")
+    void followUserAlreadyFollowing() {
+        UUID followerId = UUID.randomUUID();
+        UUID followedId = UUID.randomUUID();
+        User follower = new User();
+        follower.setId(followerId);
+        User followed = new User();
+        followed.setId(followedId);
+
+        when(userRepository.findById(followerId)).thenReturn(Optional.of(follower));
+        when(userRepository.findById(followedId)).thenReturn(Optional.of(followed));
+        when(userFollowRepository.save(any(UserFollow.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("Duplicate entry"));
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> userService.follow(followerId, followedId));
+        assertEquals("User already follows this user", exception.getMessage());
     }
 
     @Test
     @DisplayName("Should unfollow user successfully")
-    void handleUnfollowUserSuccess() {
+    void unfollowUserSuccess() {
         UUID followerId = UUID.randomUUID();
         UUID followedId = UUID.randomUUID();
-        FollowUnfollowRequestDTO dto = new FollowUnfollowRequestDTO(followerId, followedId, false);
-        User follower = mock(User.class);
-        User followed = mock(User.class);
-        when(userRepository.findById(followerId)).thenReturn(Optional.of(follower));
-        when(userRepository.findById(followedId)).thenReturn(Optional.of(followed));
-        when(userRepository.save(followed)).thenReturn(followed);
-        boolean result = userService.handleFollowUnfollow(dto, false);
-        verify(followed).removeFollower(follower);
-        verify(userRepository).save(followed);
-        assertTrue(result);
+
+        when(userFollowRepository.existsByFollower_IdAndFollowed_Id(followerId, followedId)).thenReturn(true);
+        doNothing().when(userFollowRepository).deleteByFollower_IdAndFollowed_Id(followerId, followedId);
+
+        assertDoesNotThrow(() -> userService.unfollow(followerId, followedId));
+
+        verify(userFollowRepository).deleteByFollower_IdAndFollowed_Id(followerId, followedId);
     }
 
     @Test
-    @DisplayName("Should return false when follower and followed are the same user")
-    void handleFollowUnfollowSameUser() {
+    @DisplayName("Should throw IllegalStateException when not following")
+    void unfollowUserNotFollowing() {
+        UUID followerId = UUID.randomUUID();
+        UUID followedId = UUID.randomUUID();
+
+        when(userFollowRepository.existsByFollower_IdAndFollowed_Id(followerId, followedId)).thenReturn(false);
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> userService.unfollow(followerId, followedId));
+        assertEquals("User does not follow this user", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException when follower and followed are the same user")
+    void followSameUserThrowsException() {
         UUID sameId = UUID.randomUUID();
-        FollowUnfollowRequestDTO dto = new FollowUnfollowRequestDTO(sameId, sameId, true);
-        boolean result = userService.handleFollowUnfollow(dto, true);
-        assertFalse(result);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.follow(sameId, sameId));
+        assertEquals("Cannot follow yourself", exception.getMessage());
     }
 
     @Test
-    @DisplayName("Should return false when follower not found")
-    void handleFollowUnfollowFollowerNotFound() {
+    @DisplayName("Should throw EntityNotFoundException when follower not found")
+    void followFollowerNotFound() {
         UUID followerId = UUID.randomUUID();
         UUID followedId = UUID.randomUUID();
-        FollowUnfollowRequestDTO dto = new FollowUnfollowRequestDTO(followerId, followedId, true);
+
         when(userRepository.findById(followerId)).thenReturn(Optional.empty());
-        boolean result = userService.handleFollowUnfollow(dto, true);
-        assertFalse(result);
+
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+                () -> userService.follow(followerId, followedId));
+        assertEquals(followerId + " not found", exception.getMessage());
     }
 
     @Test
-    @DisplayName("Should return false when followed not found")
-    void handleFollowUnfollowFollowedNotFound() {
+    @DisplayName("Should throw EntityNotFoundException when followed not found")
+    void followFollowedNotFound() {
         UUID followerId = UUID.randomUUID();
         UUID followedId = UUID.randomUUID();
-        FollowUnfollowRequestDTO dto = new FollowUnfollowRequestDTO(followerId, followedId, true);
-        User follower = mock(User.class);
+        User follower = new User();
+        follower.setId(followerId);
+
         when(userRepository.findById(followerId)).thenReturn(Optional.of(follower));
         when(userRepository.findById(followedId)).thenReturn(Optional.empty());
-        boolean result = userService.handleFollowUnfollow(dto, true);
-        assertFalse(result);
+
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+                () -> userService.follow(followerId, followedId));
+        assertEquals(followedId + " not found", exception.getMessage());
     }
 
     @Test
@@ -316,18 +358,17 @@ class UserServiceTest {
         follower2.setName("Follower 2");
         follower2.setLogin("follower2@email.com");
 
-        User user = new User();
-        user.setId(userId);
-        user.getFollowers().add(follower1);
-        user.getFollowers().add(follower2);
+        Page<User> followersPage = new PageImpl<>(List.of(follower1, follower2), pageable, 2);
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(userFollowRepository.findFollowersByUserId(userId, pageable)).thenReturn(followersPage);
 
-        Page<UserFollowDTO> result = userService.getFollowers(userId, pageable);
+        var result = userService.getFollowers(userId, pageable);
 
         assertNotNull(result);
-        assertEquals(2, result.getTotalElements());
-        verify(userRepository).findById(userId);
+        assertEquals(2, result.totalElements());
+        verify(userRepository).existsById(userId);
+        verify(userFollowRepository).findFollowersByUserId(userId, pageable);
     }
 
     @Test
@@ -336,13 +377,13 @@ class UserServiceTest {
         UUID userId = UUID.randomUUID();
         Pageable pageable = PageRequest.of(0, 10);
 
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        when(userRepository.existsById(userId)).thenReturn(false);
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
             () -> userService.getFollowers(userId, pageable));
 
         assertEquals("User not found with id: " + userId, exception.getMessage());
-        verify(userRepository).findById(userId);
+        verify(userRepository).existsById(userId);
     }
 
     @Test
@@ -362,18 +403,17 @@ class UserServiceTest {
         following2.setName("Following 2");
         following2.setLogin("following2@email.com");
 
-        User user = new User();
-        user.setId(userId);
-        user.getFollowing().add(following1);
-        user.getFollowing().add(following2);
+        Page<User> followingPage = new PageImpl<>(List.of(following1, following2), pageable, 2);
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(userFollowRepository.findFollowingByUserId(userId, pageable)).thenReturn(followingPage);
 
-        Page<UserFollowDTO> result = userService.getFollowing(userId, pageable);
+        var result = userService.getFollowing(userId, pageable);
 
         assertNotNull(result);
-        assertEquals(2, result.getTotalElements());
-        verify(userRepository).findById(userId);
+        assertEquals(2, result.totalElements());
+        verify(userRepository).existsById(userId);
+        verify(userFollowRepository).findFollowingByUserId(userId, pageable);
     }
 
     @Test
@@ -382,12 +422,12 @@ class UserServiceTest {
         UUID userId = UUID.randomUUID();
         Pageable pageable = PageRequest.of(0, 10);
 
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        when(userRepository.existsById(userId)).thenReturn(false);
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
             () -> userService.getFollowing(userId, pageable));
 
         assertEquals("User not found with id: " + userId, exception.getMessage());
-        verify(userRepository).findById(userId);
+        verify(userRepository).existsById(userId);
     }
 }

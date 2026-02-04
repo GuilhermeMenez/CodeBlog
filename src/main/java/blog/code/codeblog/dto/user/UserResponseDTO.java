@@ -10,6 +10,6 @@ public record UserResponseDTO(
         String name,
         String login,
         String urlProfilePic,
-        int followersCount,
-        int followingCount
+        long followersCount,
+        long followingCount
 ) {}

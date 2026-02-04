@@ -38,16 +38,16 @@ public class PostController {
         log.info("Get post by id request received for post {}", id);
         return postService.findById(id);
     }
-    //todo alterar posteriormente
-    @GetMapping("feed/{userId}")
-    @ResponseStatus(HttpStatus.OK)
-    public List<PostResponseDTO> getBalancedFeed(
-            @PathVariable UUID userId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        log.info("Get balanced feed request received for user {} (page: {}, size: {})", userId, page, size);
-        return postService.getBalancedFeed(userId, page, size);
-    }
+//    //todo alterar posteriormente
+//    @GetMapping("feed/{userId}")
+//    @ResponseStatus(HttpStatus.OK)
+//    public List<PostResponseDTO> getBalancedFeed(
+//            @PathVariable UUID userId,
+//            @RequestParam(defaultValue = "0") int page,
+//            @RequestParam(defaultValue = "10") int size) {
+//        log.info("Get balanced feed request received for user {} (page: {}, size: {})", userId, page, size);
+//        return postService.getBalancedFeed(userId, page, size);
+//    }
 
     @PostMapping("/newpost")
     @ResponseStatus(HttpStatus.CREATED)

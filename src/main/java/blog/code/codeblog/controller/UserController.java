@@ -7,7 +7,6 @@ import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
 import blog.code.codeblog.dto.user.UserFollowDTO;
 import blog.code.codeblog.dto.user.UserResponseDTO;
 import blog.code.codeblog.service.UserService;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,25 +47,16 @@ public class UserController {
 
     @PostMapping("/follow")
     @ResponseStatus(HttpStatus.OK)
-    public void follow(@RequestBody @Valid FollowUnfollowRequestDTO dto) {
-        log.info("Follow request received. followerId: {}, followedId: {}", dto.followerId(), dto.followedId());
-        processFollowAction(dto, true, "Users cannot follow themselves");
+    public void follow(@RequestBody @Valid FollowUnfollowRequestDTO followUnfollowRequestDTO) {
+        log.info("Follow request received. followerId: {}, followedId: {}", followUnfollowRequestDTO.followerId(), followUnfollowRequestDTO.followedId());
+        userService.follow(followUnfollowRequestDTO.followerId(), followUnfollowRequestDTO.followedId());
     }
 
     @PostMapping("/unfollow")
     @ResponseStatus(HttpStatus.OK)
-    public void unfollow(@RequestBody @Valid FollowUnfollowRequestDTO dto) {
-        log.info("Unfollow request received. followerId: {}, followedId: {}", dto.followerId(), dto.followedId());
-        processFollowAction(dto, false, "Users cannot unfollow themselves");
-    }
-
-    private void processFollowAction(FollowUnfollowRequestDTO dto, boolean isFollow, String selfActionMessage) {
-        if (dto.followedId().equals(dto.followerId())) {
-            throw new IllegalArgumentException(selfActionMessage);
-        }
-        if (!userService.handleFollowUnfollow(dto, isFollow)) {
-            throw new EntityNotFoundException("User not found");
-        }
+    public void unfollow(@RequestBody @Valid FollowUnfollowRequestDTO followUnfollowRequestDTO) {
+        log.info("Unfollow request received. followerId: {}, followedId: {}", followUnfollowRequestDTO.followerId(), followUnfollowRequestDTO.followedId());
+        userService.unfollow(followUnfollowRequestDTO.followerId(), followUnfollowRequestDTO.followedId());
     }
 
     @GetMapping("/user/{id}/followers")

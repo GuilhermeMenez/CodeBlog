@@ -1,5 +1,6 @@
 package blog.code.codeblog.model;
 
+
 import blog.code.codeblog.enums.UserRoles;
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,7 +16,9 @@ import java.util.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
-@Table(name = "tb_user")
+@Table(name = "tb_user", indexes = {
+    @Index(name = "idx_user_profile_pic_id", columnList = "profile_pic_id")
+})
 @Entity
 public class User implements UserDetails {
 

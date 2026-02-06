@@ -11,9 +11,16 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
-@Table(name = "tb_user_follow", uniqueConstraints = {
+@Table(name = "tb_user_follow",
+    uniqueConstraints = {
         @UniqueConstraint(columnNames = {"follower_id", "followed_id"})
-})
+    },
+    indexes = {
+        @Index(name = "idx_userfollow_follower_id", columnList = "follower_id"),
+        @Index(name = "idx_userfollow_followed_id", columnList = "followed_id"),
+        @Index(name = "idx_userfollow_followed_at", columnList = "followed_at DESC")
+    }
+)
 @Entity
 public class UserFollow {
 

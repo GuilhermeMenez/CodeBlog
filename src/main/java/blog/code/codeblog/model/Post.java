@@ -21,7 +21,12 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "TB_POST")
+@Table(name = "TB_POST", indexes = {
+    @Index(name = "idx_post_user_id", columnList = "user_id"),
+    @Index(name = "idx_post_date", columnList = "date DESC"),
+    @Index(name = "idx_post_user_date", columnList = "user_id, date DESC"),
+    @Index(name = "idx_post_author", columnList = "author")
+})
 public class Post {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -17,7 +17,12 @@ import java.util.UUID;
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name = "TB_COMMENT")
+@Table(name = "TB_COMMENT", indexes = {
+    @Index(name = "idx_comment_post_id", columnList = "post_id"),
+    @Index(name = "idx_comment_user_id", columnList = "user_id"),
+    @Index(name = "idx_comment_created_at", columnList = "createdAt DESC"),
+    @Index(name = "idx_comment_post_created", columnList = "post_id, createdAt DESC")
+})
 public class Comment  {
 
 

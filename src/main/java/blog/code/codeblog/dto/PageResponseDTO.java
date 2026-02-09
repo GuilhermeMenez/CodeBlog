@@ -2,6 +2,7 @@ package blog.code.codeblog.dto;
 
 import lombok.Builder;
 
+import java.io.Serializable;
 import java.util.List;
 
 @Builder
@@ -14,5 +15,5 @@ public record PageResponseDTO<T>(
         boolean first,
         boolean last,
         boolean empty
-) {
+) implements Serializable {
 }

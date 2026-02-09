@@ -14,6 +14,8 @@ import blog.code.codeblog.service.interfaces.PostService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +46,7 @@ public class PostServiceImpl implements PostService {
     CloudinaryService cloudinaryService;
 
     @Override
+    @Cacheable(value = "posts", key = "'all'")
     public List<PostResponseDTO> findAll() {
         log.info("[findAll] Retrieving all posts");
         List<Post> posts = postRepository.findAll();
@@ -53,6 +56,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Cacheable(value = "posts", key = "#id")
     public PostResponseDTO findById(UUID id) {
         log.info("[findById] Attempting to find post with id: {}", id);
         return postRepository.findById(id).map(this::convertToPostResponseDTO)
@@ -67,6 +71,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @CacheEvict(value = "posts", allEntries = true)
     public String save(CreatePostRequestDTO post) {
         log.info("[save] Attempting to save new post for authorId: {}", post.authorId());
 
@@ -105,6 +110,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @CacheEvict(value = "posts", allEntries = true)
     public void deletePost(UUID postId, String token) {
         log.info("[deletePost] Attempting to delete post. postId: {}", postId);
         UUID userIdFromToken = UUID.fromString(tokenService.getSubjectIdFromToken(token));
@@ -179,6 +185,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @CacheEvict(value = "posts", allEntries = true)
     public PostResponseDTO updatePost(UUID postId, PutPostDTO updatedPost) throws EntityNotFoundException {
         log.info("[updatePost] Attempting to update post. postId: {}", postId);
         if (!updatedPost.authorId().equals(updatedPost.userId())) {

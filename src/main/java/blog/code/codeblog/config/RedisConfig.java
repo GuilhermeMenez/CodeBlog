@@ -1,84 +1,118 @@
-
 package blog.code.codeblog.config;
 
-import io.lettuce.core.ClientOptions;
-import io.lettuce.core.SocketOptions;
-import org.springframework.beans.factory.annotation.Value;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.annotation.CachingConfigurer;
+import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
-import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.*;
+import org.springframework.lang.NonNull;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
+@Slf4j
 @Configuration
-public class RedisConfig {
-
-    @Value("${spring.data.redis.host}")
-    private String redisHost;
-
-    @Value("${spring.data.redis.port}")
-    private int redisPort;
-
-    @Value("${spring.data.redis.password}")
-    private String redisPassword;
-
-    @Value("${spring.data.redis.username:default}")
-    private String redisUsername;
+public class RedisConfig implements CachingConfigurer {
 
     @Bean
-    public RedisConnectionFactory redisConnectionFactory() {
-        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
-        redisConfig.setHostName(redisHost);
-        redisConfig.setPort(redisPort);
-        redisConfig.setUsername(redisUsername);
-        redisConfig.setPassword(redisPassword);
+    public ObjectMapper redisObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
 
-        SocketOptions socketOptions = SocketOptions.builder()
-                .connectTimeout(Duration.ofSeconds(10))
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
+        // tighten polymorphic validator — do NOT allow Object.class globally
+        PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
+                // only allow your application's base package(s) if you need polymorphism
+                .allowIfSubType("blog.code.codeblog")
+                // if you really need some JDK types:
+                .allowIfSubType("java.util")
+                .allowIfSubType("java.time")
                 .build();
 
-        ClientOptions clientOptions = ClientOptions.builder()
-                .socketOptions(socketOptions)
-                .build();
+        // If you can avoid enabling default typing, comment out the next line.
+        mapper.activateDefaultTyping(ptv, ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
 
-        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
-                .clientOptions(clientOptions)
-                .commandTimeout(Duration.ofSeconds(10))
-                .build();
+        log.info("[REDIS CONFIG] ObjectMapper for Redis configured with default typing and JavaTimeModule. Class: {}", mapper.getClass().getName());
 
-        LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig, clientConfig);
-        factory.afterPropertiesSet();
-        return factory;
+        return mapper;
     }
 
     @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+    public RedisTemplate<String, Object> redisTemplate(
+            RedisConnectionFactory connectionFactory,
+            ObjectMapper redisObjectMapper
+    ) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
+
+        GenericJackson2JsonRedisSerializer serializer =
+                new GenericJackson2JsonRedisSerializer(redisObjectMapper);
+
+        log.info("[REDIS CONFIG] RedisTemplate will use serializer: {} and ObjectMapper: {}", serializer.getClass().getName(), redisObjectMapper.getClass().getName());
+
         template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new GenericToStringSerializer<>(Object.class));
+        template.setValueSerializer(serializer);
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(serializer);
+
+        template.afterPropertiesSet();
         return template;
     }
 
     @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
-        RedisCacheConfiguration cacheConfiguration = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(10))
-                .disableCachingNullValues()
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
-                        new GenericJackson2JsonRedisSerializer()));
+    public RedisCacheManager cacheManager(
+            RedisConnectionFactory connectionFactory,
+            ObjectMapper redisObjectMapper
+    ) {
+        // default serializer for caches (keeps your existing behavior)
+        GenericJackson2JsonRedisSerializer genericSerializer =
+                new GenericJackson2JsonRedisSerializer(redisObjectMapper);
 
-        return RedisCacheManager.builder(redisConnectionFactory)
-                .cacheDefaults(cacheConfiguration)
+        log.info("[REDIS CONFIG] RedisCacheManager will use serializer: {} and ObjectMapper: {}", genericSerializer.getClass().getName(), redisObjectMapper.getClass().getName());
+
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration
+                .defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(5))
+                .serializeValuesWith(
+                        RedisSerializationContext
+                                .SerializationPair
+                                .fromSerializer(genericSerializer)
+                );
+
+        // create explicit per-cache config for 'users' which stores a concrete DTO type
+        // use Jackson2JsonRedisSerializer<UserResponseDTO> so no '@class' is required
+        Jackson2JsonRedisSerializer<blog.code.codeblog.dto.user.UserResponseDTO> usersSerializer =
+                new Jackson2JsonRedisSerializer<>(blog.code.codeblog.dto.user.UserResponseDTO.class);
+        usersSerializer.setObjectMapper(redisObjectMapper);
+
+        RedisCacheConfiguration usersConfig = defaultConfig
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(usersSerializer));
+
+        Map<String, RedisCacheConfiguration> initialCacheConfigurations = new HashMap<>();
+        initialCacheConfigurations.put("posts", defaultConfig);
+        initialCacheConfigurations.put("users", usersConfig);
+
+        return RedisCacheManager.builder(connectionFactory)
+                .cacheDefaults(defaultConfig)
+                .withInitialCacheConfigurations(initialCacheConfigurations)
                 .build();
     }
 
-
+    // ... errorHandler() unchanged ...
 }

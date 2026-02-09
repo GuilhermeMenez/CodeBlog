@@ -12,6 +12,8 @@ import blog.code.codeblog.repository.UserFollowRepository;
 import blog.code.codeblog.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +42,7 @@ public class UserService {
         return userRepository.findById(id);
     }
 
+    @Cacheable(value = "users", key = "#id")
     public UserResponseDTO findUserById(UUID id) {
         log.info("[findByIdAsDTO] Finding user by id: {}", id);
         User user = userRepository.findById(id)
@@ -72,6 +75,7 @@ public class UserService {
         log.info("[saveUser] User saved successfully. login: {}", user.getLogin());
     }
 
+    @CacheEvict(value = "users", key = "#id")
     public UpdateUserResponseDTO updateUser(UUID id, UpdateUserRequestDTO updatedUser) {
         log.info("[updateUser] Attempting to update user with id: {}", id);
         User existingUser = userRepository.findById(id)
@@ -92,6 +96,7 @@ public class UserService {
                 .build();
     }
 
+    @CacheEvict(value = "users", key = "#userId")
     public void deleteUser(UUID userId){
         log.info("[deleteUser] Attempting to delete user with id: {}", userId);
         if (!userRepository.existsById(userId)) {
@@ -102,6 +107,7 @@ public class UserService {
         log.info("[deleteUser] User deleted successfully. id: {}", userId);
     }
 
+    @CacheEvict(value = "users", key = "#userId")
     public ImageUploadResponseDTO saveUploadProfilePic(UUID userId, String profilePicUrl, String profilePicId) throws EntityNotFoundException {
         log.info("[updateProfilePic] Attempting to update profile pic for user with id: {}", userId);
         User existingUser = userRepository.findById(userId)

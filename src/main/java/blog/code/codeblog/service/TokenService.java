@@ -1,18 +1,23 @@
 package blog.code.codeblog.service;
 
 
+import blog.code.codeblog.config.CacheConfig;
+import blog.code.codeblog.dto.authentication.BlackListedToken;
 import blog.code.codeblog.model.User;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.github.benmanes.caffeine.cache.Cache;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -27,7 +32,7 @@ public class TokenService {
     private String secret;
 
     @Autowired
-    RedisTemplate<String,Object> redisTemplate;
+    private  Cache<String, BlackListedToken> blacklistCache;
 
     public String generateToken(User user){
         log.info("[generateToken] Generating token for user: {}", user.getLogin());
@@ -92,6 +97,7 @@ public class TokenService {
                 .toInstant();
     }
 
+
     public void blackListToken(String token) {
         log.info("[blackListToken] Blacklisting token");
         try {
@@ -102,15 +108,23 @@ public class TokenService {
                 throw new RuntimeException("Token does not have JTI");
             }
             Instant expiresAt = decodedJWT.getExpiresAt().toInstant();
-            long ttlMillis = expiresAt.toEpochMilli() - System.currentTimeMillis();
-            long ttlSeconds = Math.max(ttlMillis / 1000, 0);
-            redisTemplate.opsForValue().set("blacklist:" + jti, true, ttlSeconds, TimeUnit.SECONDS);
+            String key = "blacklist:" + jti;
+
+            blacklistCache.put(
+                    "blacklist:" + jti,
+                    new BlackListedToken(expiresAt)
+            );
             log.info("[blackListToken] Token blacklisted successfully. jti: {}", jti);
         } catch (Exception e) {
             log.error("[blackListToken] Error blacklisting token", e);
             throw new RuntimeException("Error blacklisting token: " + e.getMessage(), e);
         }
     }
+
+
+
+
+
 
     public boolean isBlackListed(String token) {
         log.info("[isBlackListed] Checking if token is blacklisted");
@@ -121,13 +135,17 @@ public class TokenService {
                 log.warn("[isBlackListed] Token does not have JTI");
                 return false;
             }
-            boolean result = redisTemplate.hasKey("blacklist:" + jti);
-            log.info("[isBlackListed] Token blacklist status for jti {}: {}", jti, result);
-            return result;
+
+            BlackListedToken isPresent = blacklistCache.getIfPresent("blacklist:" + jti);
+            if (isPresent != null) {
+                log.info("[isBlackListed] Token is blacklisted. jti: {}", jti);
+                return true;
+            }
         } catch (Exception e) {
             log.error("[isBlackListed] Error checking if token is blacklisted", e);
             return false;
         }
+        return false;
     }
 
     public String recoverToken(HttpServletRequest request) {

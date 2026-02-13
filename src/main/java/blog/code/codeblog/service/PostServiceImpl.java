@@ -14,6 +14,7 @@ import blog.code.codeblog.service.interfaces.PostService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,9 +45,12 @@ public class PostServiceImpl implements PostService {
     CloudinaryService cloudinaryService;
 
     @Override
+    @Cacheable(value = "posts", key = "#page + '-' + #size")
     public List<PostResponseDTO> findAll() {
         log.info("[findAll] Retrieving all posts");
         List<Post> posts = postRepository.findAll();
+        log.warn("[findAll] CACHEEEEEEEE");
+
         return posts.stream()
                 .map(this::convertToPostResponseDTO)
                 .toList();

@@ -12,6 +12,7 @@ import blog.code.codeblog.repository.UserFollowRepository;
 import blog.code.codeblog.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,11 +36,12 @@ public class UserService {
     @Autowired
     PasswordEncoder bCryptPasswordEncoder;
 
+
     public Optional<User> findById(UUID id) {
         log.info("[findById] Finding user by id: {}", id);
         return userRepository.findById(id);
     }
-
+    @Cacheable("users")
     public UserResponseDTO findUserById(UUID id) {
         log.info("[findByIdAsDTO] Finding user by id: {}", id);
         User user = userRepository.findById(id)

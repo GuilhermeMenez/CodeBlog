@@ -14,6 +14,7 @@ import blog.code.codeblog.service.interfaces.PostService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +45,7 @@ public class PostServiceImpl implements PostService {
     CloudinaryService cloudinaryService;
 
     @Override
+    @Cacheable("posts_v4")
     public List<PostResponseDTO> findAll() {
         log.info("[findAll] Retrieving all posts");
         List<Post> posts = postRepository.findAll();
@@ -233,18 +235,25 @@ public class PostServiceImpl implements PostService {
     }
 
     private PostResponseDTO convertToPostResponseDTO(Post post) {
-        return PostResponseDTO.builder()
-                .postId(post.getId())
-                .title(post.getTitle())
-                .content(post.getContent())
-                .author(PostAuthorDTO.builder()
-                        .id(post.getUser().getId())
-                        .name(post.getUser().getName())
-                        .build())
-                .createdAt(post.getDate())
-                .images(post.getImages())
-                .build();
+        Map<String, String> imagesCopy = post.getImages() != null
+                ? new HashMap<>(post.getImages())
+                : null;
+
+        PostAuthorDTO author = new PostAuthorDTO(
+                post.getUser().getId(),
+                post.getUser().getName()
+        );
+
+        return new PostResponseDTO(
+                post.getId(),
+                post.getTitle(),
+                post.getContent(),
+                author,
+                post.getDate(),
+                imagesCopy
+        );
     }
+
 
     private CommentResponseDTO convertToCommentResponseDTO(Comment comment) {
         return CommentResponseDTO.builder()

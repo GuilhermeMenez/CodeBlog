@@ -12,7 +12,9 @@ import blog.code.codeblog.repository.UserFollowRepository;
 import blog.code.codeblog.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,7 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
+
+import static blog.code.codeblog.config.RedisConfig.*;
 
 @Slf4j
 @Service
@@ -41,7 +47,8 @@ public class UserService {
         log.info("[findById] Finding user by id: {}", id);
         return userRepository.findById(id);
     }
-    @Cacheable("users")
+
+    @Cacheable(value = "user", key = "#id", unless = "#result == null")
     public UserResponseDTO findUserById(UUID id) {
         log.info("[findByIdAsDTO] Finding user by id: {}", id);
         User user = userRepository.findById(id)
@@ -52,16 +59,6 @@ public class UserService {
         return convertToUserResponseDTO(user);
     }
 
-    private UserResponseDTO convertToUserResponseDTO(User user) {
-        return UserResponseDTO.builder()
-                .id(user.getId())
-                .name(user.getName())
-                .login(user.getLogin())
-                .urlProfilePic(user.getUrlProfilePic())
-                .followersCount(userFollowRepository.countFollowersByUserId(user.getId()))
-                .followingCount(userFollowRepository.countFollowingByUserId(user.getId()))
-                .build();
-    }
 
     public User findByLogin(String login){
         log.info("[findByLogin] Attempting to find user by login: {}", login);
@@ -74,19 +71,21 @@ public class UserService {
         log.info("[saveUser] User saved successfully. login: {}", user.getLogin());
     }
 
+    @Transactional
+    @CacheEvict(value = "user", key = "#id")
     public UpdateUserResponseDTO updateUser(UUID id, UpdateUserRequestDTO updatedUser) {
         log.info("[updateUser] Attempting to update user with id: {}", id);
+
         User existingUser = userRepository.findById(id)
                 .orElseThrow(() -> {
                     log.warn("[updateUser] User not found. id: {}", id);
                     return new EntityNotFoundException("User not found");
                 });
 
-        existingUser.setName(updatedUser.name());
-        existingUser.setLogin(updatedUser.email());
-        existingUser.setPassword(bCryptPasswordEncoder.encode(updatedUser.password()));
+        if (updatedUser.name() != null)     existingUser.setName(updatedUser.name());
+        if (updatedUser.email() != null)    existingUser.setLogin(updatedUser.email());
+        if (updatedUser.password() != null) existingUser.setPassword(bCryptPasswordEncoder.encode(updatedUser.password()));
 
-        userRepository.save(existingUser);
         log.info("[updateUser] User updated successfully. id: {}", id);
         return UpdateUserResponseDTO.builder()
                 .name(existingUser.getName())
@@ -94,7 +93,15 @@ public class UserService {
                 .build();
     }
 
-    public void deleteUser(UUID userId){
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = USER_CACHE, key = "#userId"),
+            @CacheEvict(value = FOLLOWERS_CACHE, allEntries = true),
+            @CacheEvict(value = FOLLOWING_CACHE, allEntries = true)
+    })
+
+
+    public void deleteUser(UUID userId) {
         log.info("[deleteUser] Attempting to delete user with id: {}", userId);
         if (!userRepository.existsById(userId)) {
             log.warn("[deleteUser] User not found for deletion. id: {}", userId);
@@ -104,6 +111,7 @@ public class UserService {
         log.info("[deleteUser] User deleted successfully. id: {}", userId);
     }
 
+    @CacheEvict(value = USER_CACHE, key = "#userId")
     public ImageUploadResponseDTO saveUploadProfilePic(UUID userId, String profilePicUrl, String profilePicId) throws EntityNotFoundException {
         log.info("[updateProfilePic] Attempting to update profile pic for user with id: {}", userId);
         User existingUser = userRepository.findById(userId)
@@ -122,45 +130,44 @@ public class UserService {
                 .build();
     }
 
-
-
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = FOLLOWERS_CACHE, allEntries = true),
+            @CacheEvict(value = FOLLOWING_CACHE,  allEntries = true)
+    })
     public void follow(UUID followerId, UUID followedId) {
-        log.info("[follow] Attempting to follow user. followerId: {}, followedId: {}", followerId, followedId);
-
         validateNotSameUser(followerId, followedId);
-
         User follower = findUserOrThrow(followerId);
         User followed = findUserOrThrow(followedId);
 
-        UserFollow userFollow = UserFollow.builder()
-                .follower(follower)
-                .followed(followed)
-                .build();
-
         try {
-            userFollowRepository.save(userFollow);
+            userFollowRepository.save(UserFollow.builder()
+                    .follower(follower)
+                    .followed(followed)
+                    .build());
         } catch (DataIntegrityViolationException e) {
             log.warn("[follow] User already follows this user. followerId: {}, followedId: {}", followerId, followedId);
             throw new IllegalStateException("User already follows this user");
         }
-
         log.info("[follow] Follow operation successful. followerId: {}, followedId: {}", followerId, followedId);
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = FOLLOWERS_CACHE, allEntries = true),
+            @CacheEvict(value = FOLLOWING_CACHE,  allEntries = true)
+    })
     public void unfollow(UUID followerId, UUID followedId) {
         log.info("[unfollow] Attempting to unfollow user. followerId: {}, followedId: {}", followerId, followedId);
-
         validateNotSameUser(followerId, followedId);
 
-        if (!userFollowRepository.existsByFollower_IdAndFollowed_Id(followerId, followedId)) {
+        int deleted = userFollowRepository.deleteByFollower_IdAndFollowed_Id(followerId, followedId);
+        if (deleted == 0) {
             log.warn("[unfollow] User does not follow this user. followerId: {}, followedId: {}", followerId, followedId);
             throw new IllegalStateException("User does not follow this user");
         }
-
-        userFollowRepository.deleteByFollower_IdAndFollowed_Id(followerId, followedId);
         log.info("[unfollow] Unfollow operation successful. followerId: {}, followedId: {}", followerId, followedId);
+
     }
 
     private void validateNotSameUser(UUID followerId, UUID followedId) {
@@ -183,6 +190,7 @@ public class UserService {
         return userRepository.getReferenceById(id);
     }
 
+    @CacheEvict(value = USER_CACHE, allEntries = true)
     public boolean deleteProfilePic(String publicId) {
         log.info("[deleteProfilePic] Attempting to delete profile pic with publicId: {}", publicId);
         Optional<User> userOpt = userRepository.findByProfilePicId(publicId);
@@ -197,7 +205,13 @@ public class UserService {
         return false;
     }
 
-    public PageResponseDTO<UserFollowDTO> getFollowers(UUID userId, Pageable pageable) {
+
+
+    @Cacheable(
+            value = FOLLOWERS_CACHE,
+            key = "#userId + '_' + #pageable.pageNumber + '_' + #pageable.pageSize",
+            unless = "#result.empty == true"
+    )   public PageResponseDTO<UserFollowDTO> getFollowers(UUID userId, Pageable pageable) {
         log.info("[getFollowers] Getting followers for user id: {} (page: {}, size: {})", userId, pageable.getPageNumber(), pageable.getPageSize());
 
         if (!userRepository.existsById(userId)) {
@@ -208,7 +222,7 @@ public class UserService {
         Page<User> followersPage = userFollowRepository.findFollowersByUserId(userId, pageable);
 
         return PageResponseDTO.<UserFollowDTO>builder()
-                .content(followersPage.getContent().stream().map(this::convertToUserFollowDTO).toList())
+                .content(followersPage.getContent().stream().map(this::convertToUserFollowDTO).collect(Collectors.toList()))
                 .currentPage(followersPage.getNumber())
                 .totalPages(followersPage.getTotalPages())
                 .totalElements(followersPage.getTotalElements())
@@ -219,6 +233,11 @@ public class UserService {
                 .build();
     }
 
+    @Cacheable(
+            value = FOLLOWING_CACHE,
+            key = "#userId + '_' + #pageable.pageNumber + '_' + #pageable.pageSize",
+            unless = "#result.empty == true"
+    )
     public PageResponseDTO<UserFollowDTO> getFollowing(UUID userId, Pageable pageable) {
         log.info("[getFollowing] Getting following for user id: {} (page: {}, size: {})", userId, pageable.getPageNumber(), pageable.getPageSize());
 
@@ -230,7 +249,7 @@ public class UserService {
         Page<User> followingPage = userFollowRepository.findFollowingByUserId(userId, pageable);
 
         return PageResponseDTO.<UserFollowDTO>builder()
-                .content(followingPage.getContent().stream().map(this::convertToUserFollowDTO).toList())
+                .content(followingPage.getContent().stream().map(this::convertToUserFollowDTO).collect(Collectors.toList()))
                 .currentPage(followingPage.getNumber())
                 .totalPages(followingPage.getTotalPages())
                 .totalElements(followingPage.getTotalElements())
@@ -248,6 +267,18 @@ public class UserService {
                 .login(user.getLogin())
                 .urlProfilePic(user.getUrlProfilePic())
                 .build();
+    }
+
+
+    private UserResponseDTO convertToUserResponseDTO(User user) {
+        return new UserResponseDTO(
+                user.getId(),
+                user.getName(),
+                user.getLogin(),
+                user.getUrlProfilePic(),
+                userFollowRepository.countFollowersByUserId(user.getId()),
+                userFollowRepository.countFollowingByUserId(user.getId())
+        );
     }
 
 }

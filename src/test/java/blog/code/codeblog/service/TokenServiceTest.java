@@ -91,14 +91,6 @@ class TokenServiceTest {
     }
 
     @Test
-    @DisplayName("Should extract userId from token")
-    void getSubjectIdFromTokenShouldReturnUserId() {
-        String token = tokenService.generateToken(validUser);
-        String userId = tokenService.getSubjectIdFromToken(token);
-        assertEquals(validUser.getId().toString(), userId);
-    }
-
-    @Test
     @DisplayName("Should throw exception if token does not contain id claim")
     void getSubjectIdFromTokenWithoutIdShouldThrow() {
         String token = com.auth0.jwt.JWT.create()

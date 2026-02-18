@@ -1,6 +1,7 @@
 package blog.code.codeblog.controller;
 
 import blog.code.codeblog.dto.PageResponseDTO;
+import blog.code.codeblog.dto.post.PostResponseDTO;
 import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
 import blog.code.codeblog.dto.follow.FollowUnfollowRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
@@ -33,7 +34,7 @@ public class UserController {
 
     @GetMapping("/user/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public UserResponseDTO findUserById(@PathVariable("id") UUID id) {
+    public UserResponseDTO findUserById(@PathVariable UUID id) {
         log.info("Get user by id request received for user {}", id);
         return userService.findUserById(id);
     }
@@ -80,5 +81,11 @@ public class UserController {
         Pageable pageable = PageRequest.of(page, size);
         return userService.getFollowing(userId, pageable);
     }
+
+
+
+
+
+
 
 }

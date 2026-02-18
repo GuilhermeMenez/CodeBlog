@@ -51,7 +51,6 @@ class GlobalExceptionHandlerIntegrationTest {
     private String generateValidToken() {
         User user = userRepository.findByLogin("mockuser@example.com");
         if (user == null) {
-            // BCrypt hash for plaintext password "password"
             user = new User("Mock User", "mockuser@example.com", "$2a$10$7EqJtq98hPqEX7fNZaFWoO5cLsVxun7q2Pa/ZG3WAs8Nq0P5FNGga", UserRoles.COSTUMER);
             userRepository.saveAndFlush(user);
         }

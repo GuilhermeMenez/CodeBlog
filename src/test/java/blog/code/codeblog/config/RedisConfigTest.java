@@ -28,7 +28,6 @@ class RedisConfigTest {
     @BeforeEach
     void setUp() {
         config = new RedisConfig();
-        // Criar o redisObjectMapper usando o método da configuração
         redisObjectMapper = config.redisObjectMapper();
     }
 

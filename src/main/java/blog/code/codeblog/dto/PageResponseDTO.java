@@ -14,5 +14,5 @@ public record PageResponseDTO<T>(
         boolean first,
         boolean last,
         boolean empty
-) {
+)  {
 }

@@ -38,7 +38,6 @@ class UserRepositoryTest {
     @Test
     @DisplayName("Não deve encontrar usuário por login")
     void notfindByLogin() {
-        // Não salva o usuário antes da busca
         Optional<User> resultado = Optional.ofNullable(userRepository.findByLogin("usuario_teste"));
         assertTrue(resultado.isEmpty());
     }

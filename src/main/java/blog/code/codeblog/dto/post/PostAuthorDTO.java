@@ -1,9 +1,15 @@
 package blog.code.codeblog.dto.post;
 
-import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
-@Builder
-public record PostAuthorDTO(UUID id, String name) {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class PostAuthorDTO {
+    private UUID id;
+    private String name;
 }

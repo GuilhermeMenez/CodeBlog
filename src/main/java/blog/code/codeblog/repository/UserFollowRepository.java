@@ -23,7 +23,7 @@ public interface UserFollowRepository extends JpaRepository<UserFollow, UUID> {
 
     boolean existsByFollower_IdAndFollowed_Id(UUID followerId, UUID followedId);
 
-    void deleteByFollower_IdAndFollowed_Id(UUID followerId, UUID followedId);
+    int deleteByFollower_IdAndFollowed_Id(UUID followerId, UUID followedId);
 
     @Query("SELECT uf.follower FROM UserFollow uf WHERE uf.followed.id = :userId")
     Page<User> findFollowersByUserId(@Param("userId") UUID userId, Pageable pageable);

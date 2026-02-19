@@ -87,8 +87,8 @@ class PostServiceImplTest {
         assertEquals(postId, result.postId());
         assertEquals("Title", result.title());
         assertEquals("Content", result.content());
-        assertEquals(user.getId(), result.author().id());
-        assertEquals(user.getName(), result.author().name());
+        assertEquals(user.getId(), result.author().getId());
+        assertEquals(user.getName(), result.author().getName());
         verify(postRepository).findById(postId);
     }
 
@@ -124,8 +124,8 @@ class PostServiceImplTest {
         assertEquals(postId, result.postId());
         assertEquals("Updated Title", result.title());
         assertEquals("Updated Content", result.content());
-        assertEquals(user.getId(), result.author().id());
-        assertEquals(user.getName(), result.author().name());
+        assertEquals(user.getId(), result.author().getId());
+        assertEquals(user.getName(), result.author().getName());
         verify(postRepository).findById(postId);
         verify(postRepository).save(any(Post.class));
     }

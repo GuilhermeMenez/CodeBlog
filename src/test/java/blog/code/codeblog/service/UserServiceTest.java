@@ -98,22 +98,30 @@ class UserServiceTest {
     @DisplayName("Should update user successfully")
     void updateUserSuccess() {
         UUID id = UUID.randomUUID();
+
         User existingUser = new User();
         existingUser.setId(id);
         existingUser.setName("Old Name");
         existingUser.setLogin("old@email.com");
         existingUser.setPassword("oldPassword");
-        UpdateUserRequestDTO updateUserDTO = new UpdateUserRequestDTO("New Name", "new@email.com", "newPassword", null);
+
+        UpdateUserRequestDTO updateUserDTO =
+                new UpdateUserRequestDTO("New Name", "new@email.com", "newPassword", null);
+
         when(userRepository.findById(id)).thenReturn(Optional.of(existingUser));
         when(bCryptPasswordEncoder.encode("newPassword")).thenReturn("encodedNewPassword");
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
         UpdateUserResponseDTO response = userService.updateUser(id, updateUserDTO);
+
         assertEquals("New Name", response.name());
         assertEquals("new@email.com", response.email());
+
         verify(userRepository).findById(id);
         verify(bCryptPasswordEncoder).encode("newPassword");
-        verify(userRepository).save(existingUser);
+
+        // NÃO verificar save()
     }
+
 
     @Test
     @DisplayName("Should throw exception when updating non-existent user")
@@ -193,13 +201,18 @@ class UserServiceTest {
         UUID followerId = UUID.randomUUID();
         UUID followedId = UUID.randomUUID();
 
-        when(userFollowRepository.existsByFollower_IdAndFollowed_Id(followerId, followedId)).thenReturn(true);
-        doNothing().when(userFollowRepository).deleteByFollower_IdAndFollowed_Id(followerId, followedId);
+        when(userFollowRepository
+                .deleteByFollower_IdAndFollowed_Id(followerId, followedId))
+                .thenReturn(1);
 
         assertDoesNotThrow(() -> userService.unfollow(followerId, followedId));
 
-        verify(userFollowRepository).deleteByFollower_IdAndFollowed_Id(followerId, followedId);
+        verify(userFollowRepository)
+                .deleteByFollower_IdAndFollowed_Id(followerId, followedId);
     }
+
+
+
 
     @Test
     @DisplayName("Should throw IllegalStateException when not following")

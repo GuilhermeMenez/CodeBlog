@@ -2,16 +2,18 @@ package blog.code.codeblog.dto.post;
 
 import lombok.Builder;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
 
 @Builder
-public record PostResponseDTO(
+public record PostResponseDTO (
         UUID postId,
         String title,
         String content,
         PostAuthorDTO author,
         LocalDate createdAt,
-        Map<String, String> images ) {
+        Map<String, String> images ) implements Serializable
+{
 }

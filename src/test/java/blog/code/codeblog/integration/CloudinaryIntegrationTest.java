@@ -61,7 +61,6 @@ class CloudinaryIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Create test user
         testUser = new User();
         testUser.setName("Test User");
         testUser.setLogin("testuser@email.com");
@@ -166,7 +165,6 @@ class CloudinaryIntegrationTest {
     @Test
     @DisplayName("Should delete profile image successfully")
     void deleteProfileImageSuccess() throws Exception {
-        // First, set up user with profile pic
         String publicId = "profile_pics/test-image";
         testUser.setUrlProfilePic("https://cloudinary.com/profile.jpg");
         testUser.setProfilePicId(publicId);
@@ -213,7 +211,6 @@ class CloudinaryIntegrationTest {
                         .header("Authorization", "Bearer " + authToken))
                 .andExpect(result -> {
                     int status = result.getResponse().getStatus();
-                    // Should be 404 or handled by exception handler
                     assertTrue(status == 404 || status == 500,
                             "Expected 404 or 500 for non-existent image, got: " + status);
                 });

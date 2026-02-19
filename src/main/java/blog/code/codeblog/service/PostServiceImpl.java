@@ -14,6 +14,9 @@ import blog.code.codeblog.service.interfaces.PostService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +27,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
+
+import static blog.code.codeblog.config.RedisConfig.POST_CACHE;
+import static blog.code.codeblog.config.RedisConfig.USER_POSTS_CACHE;
 
 @Slf4j
 @Service
@@ -46,13 +53,13 @@ public class PostServiceImpl implements PostService {
     @Override
     public List<PostResponseDTO> findAll() {
         log.info("[findAll] Retrieving all posts");
-        List<Post> posts = postRepository.findAll();
-        return posts.stream()
+        return postRepository.findAll().stream()
                 .map(this::convertToPostResponseDTO)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Override
+    @Cacheable(value = POST_CACHE, key = "#id", unless = "#result == null")
     public PostResponseDTO findById(UUID id) {
         log.info("[findById] Attempting to find post with id: {}", id);
         return postRepository.findById(id).map(this::convertToPostResponseDTO)
@@ -67,6 +74,9 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = USER_POSTS_CACHE, allEntries = true)
+    })
     public String save(CreatePostRequestDTO post) {
         log.info("[save] Attempting to save new post for authorId: {}", post.authorId());
 
@@ -105,6 +115,10 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = POST_CACHE, key = "#postId"),
+            @CacheEvict(value =  USER_POSTS_CACHE, allEntries = true)
+    })
     public void deletePost(UUID postId, String token) {
         log.info("[deletePost] Attempting to delete post. postId: {}", postId);
         UUID userIdFromToken = UUID.fromString(tokenService.getSubjectIdFromToken(token));
@@ -151,6 +165,11 @@ public class PostServiceImpl implements PostService {
 //    }
 
     @Override
+    @Cacheable(
+            value = USER_POSTS_CACHE,
+            key = "#userId + '_' + #page + '_' + #size",
+            unless = "#result.empty == true"
+    )
     public PageResponseDTO<PostResponseDTO> getAllUserPosts(UUID userId, int page, int size) throws EntityNotFoundException {
         log.info("[getAllUserPosts] Getting all posts for userId: {} (page: {}, size: {})", userId, page, size);
 
@@ -163,8 +182,7 @@ public class PostServiceImpl implements PostService {
         Page<Post> postPage = postRepository.findByAuthorId(userId, pageable);
 
         List<PostResponseDTO> content = postPage.getContent().stream()
-                .map(this::convertToPostResponseDTO)
-                .toList();
+                .map(this::convertToPostResponseDTO).collect(Collectors.toList());
 
         return PageResponseDTO.<PostResponseDTO>builder()
                 .content(content)
@@ -179,6 +197,10 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = POST_CACHE, key = "#postId"),
+            @CacheEvict(value =  USER_POSTS_CACHE, allEntries = true)
+    })
     public PostResponseDTO updatePost(UUID postId, PutPostDTO updatedPost) throws EntityNotFoundException {
         log.info("[updatePost] Attempting to update post. postId: {}", postId);
         if (!updatedPost.authorId().equals(updatedPost.userId())) {
@@ -198,6 +220,11 @@ public class PostServiceImpl implements PostService {
         return convertToPostResponseDTO(existingPost);
     }
 
+
+    @Caching(evict = {
+            @CacheEvict(value = POST_CACHE, key = "#postId"),
+            @CacheEvict(value =  USER_POSTS_CACHE, allEntries = true)
+    })
     public ImageUploadResponseDTO saveUploadedImage(UUID postId, String imageUrl, String publicId) {
         log.info("[uploadImage] Uploading image for: {}", postId);
         Post post = postRepository.findById(postId)
@@ -219,6 +246,7 @@ public class PostServiceImpl implements PostService {
         return postRepository.getReferenceById(id);
     }
 
+    @CacheEvict(value = USER_POSTS_CACHE, allEntries = true)
     public boolean deleteImage(String publicId) {
         log.info("[deleteImage] Attempting to delete image with publicId: {}", publicId);
         Optional<Post> postOpt = postRepository.findByImagePublicId(publicId);
@@ -233,18 +261,25 @@ public class PostServiceImpl implements PostService {
     }
 
     private PostResponseDTO convertToPostResponseDTO(Post post) {
-        return PostResponseDTO.builder()
-                .postId(post.getId())
-                .title(post.getTitle())
-                .content(post.getContent())
-                .author(PostAuthorDTO.builder()
-                        .id(post.getUser().getId())
-                        .name(post.getUser().getName())
-                        .build())
-                .createdAt(post.getDate())
-                .images(post.getImages())
-                .build();
+        Map<String, String> imagesCopy = post.getImages() != null
+                ? new HashMap<>(post.getImages())
+                : null;
+
+        PostAuthorDTO author = new PostAuthorDTO(
+                post.getUser().getId(),
+                post.getUser().getName()
+        );
+
+        return new PostResponseDTO(
+                post.getId(),
+                post.getTitle(),
+                post.getContent(),
+                author,
+                post.getDate(),
+                imagesCopy
+        );
     }
+
 
     private CommentResponseDTO convertToCommentResponseDTO(Comment comment) {
         return CommentResponseDTO.builder()

@@ -39,6 +39,7 @@ public class TokenService {
                     .withSubject(user.getLogin())
                     .withJWTId(jti)
                     .withClaim("name", user.getName())
+                    .withClaim("id", user.getId().toString())
                     .withExpiresAt(generateExpirationDate())
                     .sign(algorithm);
             log.info("[generateToken] Token generated successfully for user: {}", user.getLogin());

@@ -1,10 +1,12 @@
 package blog.code.codeblog.service;
 
 import blog.code.codeblog.dto.post.CreatePostRequestDTO;
-import blog.code.codeblog.dto.post.PutPostDTO;
 import blog.code.codeblog.dto.post.PostResponseDTO;
+import blog.code.codeblog.dto.post.PutPostDTO;
+import blog.code.codeblog.model.Comment;
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.model.User;
+import blog.code.codeblog.repository.CommentRepository;
 import blog.code.codeblog.repository.PostRepository;
 import blog.code.codeblog.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -19,6 +21,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,6 +35,8 @@ class PostServiceImplTest {
     private UserRepository userRepository;
     @Mock
     private TokenService tokenService;
+    @Mock
+    private CommentRepository commentRepository;
     @InjectMocks
     private PostServiceImpl postService;
 
@@ -402,5 +407,76 @@ class PostServiceImplTest {
         verify(postRepository).getReferenceById(postId);
     }
 
-  }
+    @Test
+    @DisplayName("Should retrieve comments for a post successfully")
+    void getPostCommentsShouldSucceed() {
+        UUID postId = UUID.randomUUID();
+        int page = 0;
+        int size = 5;
 
+        Comment comment1 = new Comment();
+        comment1.setId(UUID.randomUUID());
+        comment1.setContent("First comment");
+        comment1.setAutor("Author 1");
+        comment1.setCreatedAt(LocalDateTime.now());
+
+        Comment comment2 = new Comment();
+        comment2.setId(UUID.randomUUID());
+        comment2.setContent("Second comment");
+        comment2.setAutor("Author 2");
+        comment2.setCreatedAt(LocalDateTime.now());
+
+        Page<Comment> commentsPage = new PageImpl<>(List.of(comment1, comment2), PageRequest.of(page, size), 2);
+
+        when(commentRepository.findByPost_Id(eq(postId), any())).thenReturn(commentsPage);
+
+        var result = postService.getPostComments(postId, page, size);
+
+        assertNotNull(result);
+        assertEquals(2, result.content().size());
+        assertEquals("First comment", result.content().get(0).content());
+        assertEquals("Second comment", result.content().get(1).content());
+        assertEquals(0, result.currentPage());
+        assertEquals(1, result.totalPages());
+        assertEquals(2, result.totalElements());
+        assertTrue(result.first());
+        assertTrue(result.last());
+        verify(commentRepository).findByPost_Id(eq(postId), any());
+    }
+
+    @Test
+    @DisplayName("Should return empty page when no comments exist for the post")
+    void getPostCommentsEmptyPage() {
+        UUID postId = UUID.randomUUID();
+        int page = 0;
+        int size = 5;
+
+        Page<Comment> emptyPage = new PageImpl<>(Collections.emptyList(), PageRequest.of(page, size), 0);
+
+        when(commentRepository.findByPost_Id(eq(postId), any())).thenReturn(emptyPage);
+
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+                () -> postService.getPostComments(postId, page, size));
+        assertTrue(exception.getMessage().contains("No comments found for postId:"));
+        verify(commentRepository).findByPost_Id(eq(postId), any());
+    }
+
+    @Test
+    @DisplayName("Should throw EntityNotFoundException when the post does not exist")
+    void getPostCommentsPostNotFoundShouldThrow() {
+        UUID postId = UUID.randomUUID();
+        int page = 0;
+        int size = 5;
+
+        when(commentRepository.findByPost_Id(eq(postId), any())).thenReturn(Page.empty());
+
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+                () -> postService.getPostComments(postId, page, size));
+
+        // Before: assertEquals("No comments found for postId:", postId.toString());
+        assertEquals("No comments found for postId: " + postId, exception.getMessage());
+        verify(commentRepository).findByPost_Id(eq(postId), any());
+    }
+
+
+}

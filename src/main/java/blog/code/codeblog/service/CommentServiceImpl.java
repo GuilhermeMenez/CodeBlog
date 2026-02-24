@@ -1,7 +1,7 @@
 package blog.code.codeblog.service;
 
-import blog.code.codeblog.dto.post.CommentDTO;
 import blog.code.codeblog.dto.comment.CommentResponseDTO;
+import blog.code.codeblog.dto.post.CommentDTO;
 import blog.code.codeblog.model.Comment;
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.model.User;
@@ -11,9 +11,13 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
+
+import static blog.code.codeblog.config.RedisConfig.POST_COMMENTS_CACHE;
 
 @Slf4j
 @Service
@@ -27,6 +31,7 @@ public class CommentServiceImpl implements CommentService {
     private final PostServiceImpl postServiceImpl;
 
     @Override
+    @CacheEvict(value = POST_COMMENTS_CACHE, allEntries = true)
     public CommentResponseDTO saveComment(@NotNull CommentDTO comment) {
         log.info("[saveComment] Attempting to save comment for postId: {} by authorId: {}", comment.postId(), comment.authorId());
 
@@ -48,6 +53,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
+    @CacheEvict(value = POST_COMMENTS_CACHE, allEntries = true)
     public void deleteComment(UUID id) {
         log.info("[deleteComment] Attempting to delete comment with id: {}", id);
 
@@ -61,6 +67,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
+    @CacheEvict(value = POST_COMMENTS_CACHE, allEntries = true)
     public CommentResponseDTO updateComment(CommentDTO dto, UUID commentId) {
         log.info("[updateComment] Attempting to update comment. commentId: {}", commentId);
 
@@ -82,8 +89,4 @@ public class CommentServiceImpl implements CommentService {
                 comment.getCreatedAt()
         );
     }
-
-
-
-
 }

@@ -3,11 +3,15 @@ package blog.code.codeblog.service;
 import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
 import blog.code.codeblog.dto.comment.CommentResponseDTO;
-import blog.code.codeblog.dto.post.*;
+import blog.code.codeblog.dto.post.CreatePostRequestDTO;
+import blog.code.codeblog.dto.post.PostAuthorDTO;
+import blog.code.codeblog.dto.post.PostResponseDTO;
+import blog.code.codeblog.dto.post.PutPostDTO;
 import blog.code.codeblog.enums.FlowImageFlag;
 import blog.code.codeblog.model.Comment;
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.model.User;
+import blog.code.codeblog.repository.CommentRepository;
 import blog.code.codeblog.repository.PostRepository;
 import blog.code.codeblog.repository.UserRepository;
 import blog.code.codeblog.service.interfaces.PostService;
@@ -29,8 +33,7 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static blog.code.codeblog.config.RedisConfig.POST_CACHE;
-import static blog.code.codeblog.config.RedisConfig.USER_POSTS_CACHE;
+import static blog.code.codeblog.config.RedisConfig.*;
 
 @Slf4j
 @Service
@@ -49,6 +52,9 @@ public class PostServiceImpl implements PostService {
     @Lazy
     @Autowired
     CloudinaryService cloudinaryService;
+
+    @Autowired
+    CommentRepository commentRepository;
 
     @Override
     public List<PostResponseDTO> findAll() {
@@ -69,9 +75,7 @@ public class PostServiceImpl implements PostService {
                 });
     }
 
-    private Optional<Post> findEntityById(UUID id) {
-        return postRepository.findById(id);
-    }
+
 
     @Override
     @Caching(evict = {
@@ -258,6 +262,43 @@ public class PostServiceImpl implements PostService {
             return true;
         }
         return false;
+    }
+
+
+    @Override
+    @Cacheable(value = POST_COMMENTS_CACHE, key = "#postId + '_' + #page + '_' + #size")
+    public PageResponseDTO<CommentResponseDTO> getPostComments(UUID postId, int page, int size) {
+        log.info("[getAllComments] Getting all comments for postId: {} (page: {}, size: {})", postId, page, size);
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Comment> commentPage = commentRepository.findByPost_Id(postId, pageable);
+
+        if (commentPage.isEmpty()) {
+            log.warn("[getAllComments] No comments found for postId: {}", postId);
+            throw new EntityNotFoundException("No comments found for postId: " + postId);
+        }
+
+
+
+        List<CommentResponseDTO> comments = commentPage.getContent().stream()
+                .map(this::convertToCommentResponseDTO)
+                .collect(Collectors.toList());
+
+        return PageResponseDTO.<CommentResponseDTO>builder()
+                .content(comments)
+                .currentPage(commentPage.getNumber())
+                .totalPages(commentPage.getTotalPages())
+                .totalElements(commentPage.getTotalElements())
+                .size(commentPage.getSize())
+                .first(commentPage.isFirst())
+                .last(commentPage.isLast())
+                .empty(commentPage.isEmpty())
+                .build();
+    }
+
+
+    private Optional<Post> findEntityById(UUID id) {
+        return postRepository.findById(id);
     }
 
     private PostResponseDTO convertToPostResponseDTO(Post post) {

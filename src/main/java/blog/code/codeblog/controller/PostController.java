@@ -1,6 +1,7 @@
 package blog.code.codeblog.controller;
 
 import blog.code.codeblog.dto.PageResponseDTO;
+import blog.code.codeblog.dto.comment.CommentResponseDTO;
 import blog.code.codeblog.dto.post.CreatePostRequestDTO;
 import blog.code.codeblog.dto.post.PostResponseDTO;
 import blog.code.codeblog.dto.post.PutPostDTO;
@@ -34,7 +35,7 @@ public class PostController {
 
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public PostResponseDTO getPostbyId(@PathVariable("id") UUID id) {
+    public PostResponseDTO getPostbyId(@PathVariable UUID id) {
         log.info("Get post by id request received for post {}", id);
         return postService.findById(id);
     }
@@ -70,12 +71,21 @@ public class PostController {
         postService.deletePost(postId, token);
     }
 
-    @GetMapping("posts")
+    @GetMapping("/posts")
     @ResponseStatus(HttpStatus.OK)
     public List<PostResponseDTO> getAllPosts() {
         log.info("Get all posts request received");
         return postService.findAll();
     }
 
+    @GetMapping("/{id}/comments")
+    @ResponseStatus(HttpStatus.OK)
+    public PageResponseDTO<CommentResponseDTO> getAllComments(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("Get all comments for post request received for post {} (page: {}, size: {})", id, page, size);
+        return postService.getPostComments(id, page, size);
 
+    }
 }

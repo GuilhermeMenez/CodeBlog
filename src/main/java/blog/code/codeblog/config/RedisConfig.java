@@ -64,6 +64,7 @@ public class RedisConfig {
     public static final String POST_CACHE       = "post";
     public static final String USER_POSTS_CACHE = "user-posts";
     public static final String POST_COMMENTS_CACHE = "postComments";
+    public static final String FEED_CACHE = "feed";
 
 
     @Bean
@@ -158,6 +159,7 @@ public class RedisConfig {
         cacheConfigs.put(POST_CACHE,       defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigs.put(USER_POSTS_CACHE, defaultConfig.entryTtl(Duration.ofMinutes(10)));
         cacheConfigs.put(POST_COMMENTS_CACHE, defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigs.put(FEED_CACHE, defaultConfig.entryTtl(Duration.ofMinutes(2)));
 
 
         return RedisCacheManager.builder(connectionFactory)

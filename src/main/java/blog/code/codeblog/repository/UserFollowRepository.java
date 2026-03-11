@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -33,6 +34,9 @@ public interface UserFollowRepository extends JpaRepository<UserFollow, UUID> {
 
     @Query("SELECT uf FROM UserFollow uf WHERE uf.follower.id = :followerId AND uf.followed.id = :followedId")
     Optional<UserFollow> findByFollowerIdAndFollowedId(@Param("followerId") UUID followerId, @Param("followedId") UUID followedId);
+
+    @Query("SELECT uf.followed.id FROM UserFollow uf WHERE uf.follower.id = :userId")
+    Set<UUID> findFollowedIdsByUserId(@Param("userId") UUID userId);
 
 }
 

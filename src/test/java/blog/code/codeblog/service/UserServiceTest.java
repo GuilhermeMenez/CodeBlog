@@ -18,6 +18,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,12 +34,15 @@ class UserServiceTest {
     private UserFollowRepository userFollowRepository;
     @Mock
     private PasswordEncoder bCryptPasswordEncoder;
+    @Mock
+    private TokenService tokenService;
     @InjectMocks
     private UserService userService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        ReflectionTestUtils.setField(userService, "self", userService);
     }
 
     @Test
@@ -443,4 +447,59 @@ class UserServiceTest {
         assertEquals("User not found with id: " + userId, exception.getMessage());
         verify(userRepository).existsById(userId);
     }
+
+    @Test
+    @DisplayName("Should get user information by token successfully")
+    void getUserInformationSuccess() {
+        UUID userId = UUID.randomUUID();
+        String token = "valid-jwt-token";
+
+        User user = new User();
+        user.setId(userId);
+        user.setName("John Doe");
+        user.setLogin("john@email.com");
+        user.setUrlProfilePic("https://cloudinary.com/profile.jpg");
+
+        when(tokenService.getSubjectIdFromToken(token)).thenReturn(userId.toString());
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userFollowRepository.countFollowersByUserId(userId)).thenReturn(5L);
+        when(userFollowRepository.countFollowingByUserId(userId)).thenReturn(10L);
+
+        var result = userService.getUserInformation(token);
+
+        assertNotNull(result);
+        assertEquals(userId, result.id());
+        assertEquals("John Doe", result.name());
+        assertEquals("john@email.com", result.login());
+        assertEquals("https://cloudinary.com/profile.jpg", result.urlProfilePic());
+        assertEquals(5L, result.followersCount());
+        assertEquals(10L, result.followingCount());
+
+        verify(tokenService).getSubjectIdFromToken(token);
+        verify(userRepository).findById(userId);
+        verify(userFollowRepository).countFollowersByUserId(userId);
+        verify(userFollowRepository).countFollowingByUserId(userId);
+    }
+
+    @Test
+    @DisplayName("Should throw EntityNotFoundException when user not found for token")
+    void getUserInformationUserNotFound() {
+        UUID userId = UUID.randomUUID();
+        String token = "valid-jwt-token";
+
+
+        when(tokenService.getSubjectIdFromToken(token)).thenReturn(userId.toString());
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+                () -> userService.getUserInformation(token));
+
+        assertEquals("User not found with id: " + userId, exception.getMessage());
+        verify(tokenService).getSubjectIdFromToken(token);
+        verify(userRepository).findById(userId);
+    }
+
+
+
+
 }

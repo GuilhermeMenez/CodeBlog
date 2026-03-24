@@ -2,10 +2,12 @@ package blog.code.codeblog.service;
 
 
 import blog.code.codeblog.model.User;
+import blog.code.codeblog.repository.UserRepository;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 
@@ -33,7 +36,7 @@ public class TokenService {
         log.info("[generateToken] Generating token for user: {}", user.getLogin());
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
-            String jti = java.util.UUID.randomUUID().toString();
+            String jti = UUID.randomUUID().toString();
             String token = JWT.create()
                     .withIssuer("CodeBlog")
                     .withSubject(user.getLogin())

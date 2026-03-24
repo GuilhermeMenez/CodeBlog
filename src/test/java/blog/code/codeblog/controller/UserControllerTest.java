@@ -183,4 +183,82 @@ class UserControllerTest {
         verify(userService, times(1)).getFollowing(testUserId, pageable);
     }
 
+    @Test
+    @DisplayName("Should get current user information by token successfully")
+    void getMeShouldReturnCurrentUserWhenTokenIsValid() {
+        String token = "Bearer valid-jwt-token";
+
+        when(userService.getUserInformation(token)).thenReturn(testUserResponseDTO);
+
+        UserResponseDTO result = userController.getMe(token);
+
+        assertNotNull(result);
+        assertEquals(testUserId, result.id());
+        assertEquals("testuser", result.name());
+        assertEquals("testuser@email.com", result.login());
+        assertEquals("https://pic.jpg", result.urlProfilePic());
+        assertEquals(10L, result.followersCount());
+        assertEquals(5L, result.followingCount());
+
+        verify(userService, times(1)).getUserInformation(token);
+    }
+
+    @Test
+    @DisplayName("Should throw EntityNotFoundException when token is invalid or user not found")
+    void getMeShouldThrowWhenTokenIsInvalid() {
+        String invalidToken = "Bearer invalid-token";
+
+        when(userService.getUserInformation(invalidToken))
+                .thenThrow(new EntityNotFoundException("User not found"));
+
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+                () -> userController.getMe(invalidToken));
+
+        assertEquals("User not found", exception.getMessage());
+        verify(userService, times(1)).getUserInformation(invalidToken);
+    }
+
+    @Test
+    @DisplayName("Should get current user information with minimal data")
+    void getMeShouldReturnCurrentUserWithMinimalData() {
+        String token = "Bearer valid-jwt-token";
+        UserResponseDTO minimalUserDTO = UserResponseDTO.builder()
+                .id(testUserId)
+                .name("newuser")
+                .login("newuser@email.com")
+                .urlProfilePic(null)
+                .followersCount(0L)
+                .followingCount(0L)
+                .build();
+
+        when(userService.getUserInformation(token)).thenReturn(minimalUserDTO);
+
+        UserResponseDTO result = userController.getMe(token);
+
+        assertNotNull(result);
+        assertEquals(testUserId, result.id());
+        assertEquals("newuser", result.name());
+        assertEquals("newuser@email.com", result.login());
+        assertNull(result.urlProfilePic());
+        assertEquals(0L, result.followersCount());
+        assertEquals(0L, result.followingCount());
+
+        verify(userService, times(1)).getUserInformation(token);
+    }
+
+    @Test
+    @DisplayName("Should throw RuntimeException when token format is invalid")
+    void getMeShouldThrowWhenTokenFormatIsInvalid() {
+        String malformedToken = "invalid-format";
+
+        when(userService.getUserInformation(malformedToken))
+                .thenThrow(new RuntimeException("Invalid token format"));
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> userController.getMe(malformedToken));
+
+        assertEquals("Invalid token format", exception.getMessage());
+        verify(userService, times(1)).getUserInformation(malformedToken);
+    }
+
 }

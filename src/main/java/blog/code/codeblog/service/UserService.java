@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,6 +43,13 @@ public class UserService {
     @Autowired
     PasswordEncoder bCryptPasswordEncoder;
 
+    @Lazy
+    @Autowired
+    TokenService tokenService;
+
+    @Lazy
+    @Autowired
+    UserService self;
 
     public Optional<User> findById(UUID id) {
         log.info("[findById] Finding user by id: {}", id);
@@ -281,4 +289,10 @@ public class UserService {
         );
     }
 
+
+    public UserResponseDTO getUserInformation(String token) {
+        var userid = tokenService.getSubjectIdFromToken(token);
+        log.info("[getUserInformation] Getting user information for user id: {}", userid);
+        return self.findUserById(UUID.fromString(userid));
+    }
 }

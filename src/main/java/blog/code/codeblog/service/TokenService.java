@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 
@@ -33,7 +34,7 @@ public class TokenService {
         log.info("[generateToken] Generating token for user: {}", user.getLogin());
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
-            String jti = java.util.UUID.randomUUID().toString();
+            String jti = UUID.randomUUID().toString();
             String token = JWT.create()
                     .withIssuer("CodeBlog")
                     .withSubject(user.getLogin())

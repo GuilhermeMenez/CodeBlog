@@ -1,7 +1,6 @@
 package blog.code.codeblog.controller;
 
 import blog.code.codeblog.dto.PageResponseDTO;
-import blog.code.codeblog.dto.post.PostResponseDTO;
 import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
 import blog.code.codeblog.dto.follow.FollowUnfollowRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
@@ -82,10 +81,10 @@ public class UserController {
         return userService.getFollowing(userId, pageable);
     }
 
-
-
-
-
-
-
+    @GetMapping("/users/me")
+    @ResponseStatus(HttpStatus.OK)
+    public UserResponseDTO getMe(@RequestHeader("Authorization") String token) {
+        log.info("Get me request received");
+        return userService.getUserInformation(token);
+    }
 }

@@ -165,7 +165,7 @@ src/test/java/blog/code/codeblog/
 
 ### Variáveis de Ambiente
 
-Crie um arquivo `.env` na raiz do projeto:
+Configurar as variáveis de ambiente conforme abaixo (exemplo para desenvolvimento local):
 
 ```env
 # Banco de Dados

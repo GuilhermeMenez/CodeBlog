@@ -2,6 +2,7 @@ package blog.code.codeblog.controller;
 
 import blog.code.codeblog.dto.authentication.AuthenticationDTO;
 import blog.code.codeblog.dto.authentication.LoginResponseDTO;
+import blog.code.codeblog.dto.authentication.RegisterRespondeDTO;
 import blog.code.codeblog.dto.user.CreateUserDTO;
 import blog.code.codeblog.service.AuthorizationService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,7 +23,7 @@ public class AutheticationController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public String register(@ModelAttribute @Valid CreateUserDTO user) {
+    public RegisterRespondeDTO register(@ModelAttribute @Valid CreateUserDTO user) {
         log.info("Register request received for user {}", user.email());
         return authorizationService.register(user);
     }

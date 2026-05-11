@@ -2,6 +2,7 @@ package blog.code.codeblog.service;
 
 
 import blog.code.codeblog.dto.user.CreateUserDTO;
+import blog.code.codeblog.dto.authentication.RegisterRespondeDTO;
 import blog.code.codeblog.enums.UserRoles;
 import blog.code.codeblog.model.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,10 +62,10 @@ class AuthorizationServiceTest {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(authentication);
         when(authentication.getPrincipal()).thenReturn(newUser);
 
-        String resultToken = authorizationService.register(createUserDTO);
+        RegisterRespondeDTO result = authorizationService.register(createUserDTO);
 
-        assertNotNull(resultToken);
-        assertEquals(token, resultToken);
+        assertNotNull(result);
+        assertEquals(token, result.token());
 
         verify(userService).findByLogin(createUserDTO.email());
         verify(passwordEncoder).encode(createUserDTO.password());

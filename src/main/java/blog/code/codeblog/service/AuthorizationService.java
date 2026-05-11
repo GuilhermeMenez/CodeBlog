@@ -2,6 +2,7 @@ package blog.code.codeblog.service;
 
 import blog.code.codeblog.dto.authentication.AuthenticationDTO;
 import blog.code.codeblog.dto.authentication.LoginResponseDTO;
+import blog.code.codeblog.dto.authentication.RegisterRespondeDTO;
 import blog.code.codeblog.dto.user.CreateUserDTO;
 import blog.code.codeblog.enums.FlowImageFlag;
 import blog.code.codeblog.model.User;
@@ -52,7 +53,7 @@ public class AuthorizationService implements UserDetailsService {
         return user;
     }
 
-    public String register(CreateUserDTO user) throws IllegalArgumentException {
+    public RegisterRespondeDTO register(CreateUserDTO user) throws IllegalArgumentException {
         log.info("[register] Attempting to register user: {}", user.email());
 
         if (userService.findByLogin(user.email()) != null){
@@ -79,7 +80,10 @@ public class AuthorizationService implements UserDetailsService {
         var loginResponse = login(userAuthenticate);
 
         log.info("[register] User logged in successfully after registration: {}", newUser.getLogin());
-        return loginResponse.token();
+
+        return new RegisterRespondeDTO(loginResponse.token());
+        //return loginResponse.token();
+        //retornar um login response dtop
     }
 
     public LoginResponseDTO login(AuthenticationDTO authenticationDTO){

@@ -1,6 +1,7 @@
 package blog.code.codeblog.controller;
 
 
+import blog.code.codeblog.dto.authentication.RegisterRespondeDTO;
 import blog.code.codeblog.dto.user.CreateUserDTO;
 import blog.code.codeblog.enums.UserRoles;
 import blog.code.codeblog.service.AuthorizationService;
@@ -35,13 +36,12 @@ class AutheticationControllerTest {
     void testRegisterSuccess() {
         CreateUserDTO createUserDTO = new CreateUserDTO("Test User", "test@example.com", "plainPassword", UserRoles.COSTUMER, null);
 
-        when(authorizationService.register(createUserDTO)).thenReturn("mocked-token");
+        when(authorizationService.register(createUserDTO)).thenReturn(new RegisterRespondeDTO("mocked-token"));
 
-        String tokenResponse = authenticationController.register(createUserDTO);
+        RegisterRespondeDTO tokenResponse = authenticationController.register(createUserDTO);
 
         Assertions.assertNotNull(tokenResponse);
-        Assertions.assertEquals("mocked-token", tokenResponse);
-        Assertions.assertNotNull(tokenResponse);
+        Assertions.assertEquals("mocked-token", tokenResponse.token());
         verify(authorizationService, times(1)).register(createUserDTO);
     }
 

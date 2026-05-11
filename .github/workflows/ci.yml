@@ -24,6 +24,10 @@ jobs:
         run: chmod +x ./mvnw
 
       - name: Build and test
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         run: ./mvnw -B verify
 
       - name: Upload test reports

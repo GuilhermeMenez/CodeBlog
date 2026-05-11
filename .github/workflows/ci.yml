@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "feature/pipelines" ]
   pull_request:
   workflow_dispatch:
 
@@ -31,4 +31,3 @@ jobs:
           path: |
             target/surefire-reports
             target/failsafe-reports
-

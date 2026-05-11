@@ -36,8 +36,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: codeblog-app:local
-    container_name: codeblog-app
+    image: codeblog-api:local
+    container_name: codeblog-api
     restart: unless-stopped
     depends_on:
       postgres:
@@ -47,14 +47,13 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       PORT: 8080
-      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-codeblog}
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-codeblog}:sslmode=disable
       DATABASE_USERNAME: ${DATABASE_USERNAME:-codeblog_user}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-change_me}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_USERNAME: ${REDIS_USERNAME:-default}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      REDIS_SSL: "false"
       JWT_SECRET: ${JWT_SECRET:-change_this_jwt_secret}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}

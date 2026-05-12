@@ -13,6 +13,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
 import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -77,8 +78,7 @@ class TokenServiceTest {
         String expiredToken = com.auth0.jwt.JWT.create()
                 .withIssuer("CodeBlog")
                 .withSubject(validUser.getLogin())
-                .withExpiresAt(java.time.LocalDateTime.now().minusHours(1)
-                        .atZone(java.time.ZoneId.of("America/Sao_Paulo")).toInstant())
+                .withExpiresAt(Instant.now().minusSeconds(3600))
                 .sign(com.auth0.jwt.algorithms.Algorithm.HMAC256(SECRET));
         assertThrows(JWTVerificationException.class, () -> tokenService.validateToken(expiredToken));
     }

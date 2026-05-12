@@ -28,10 +28,10 @@ jobs:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-          REDIS_HOST: ${{ secrets.REDIS_HOST }}
-          REDIS_PORT: ${{ secrets.REDIS_PORT }}
-          REDIS_USERNAME: ${{ secrets.REDIS_USERNAME }}
-          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          SPRING_DATA_REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          SPRING_DATA_REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          SPRING_DATA_REDIS_USERNAME: ${{ secrets.REDIS_USERNAME }}
+          SPRING_DATA_REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
         run: ./mvnw -B verify
 
       - name: Upload test reports

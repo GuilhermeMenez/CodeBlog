@@ -16,7 +16,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +32,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
 @Transactional
 class CloudinaryIntegrationTest {
 
@@ -114,7 +112,6 @@ class CloudinaryIntegrationTest {
                 .andExpect(jsonPath("$.imageUrl").exists())
                 .andExpect(jsonPath("$.publicId").exists());
 
-        // Verify user was updated
         User updatedUser = userRepository.findById(testUser.getId()).orElseThrow();
         assertNotNull(updatedUser.getUrlProfilePic());
         assertNotNull(updatedUser.getProfilePicId());

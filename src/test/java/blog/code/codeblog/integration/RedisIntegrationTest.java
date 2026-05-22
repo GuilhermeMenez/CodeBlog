@@ -12,7 +12,6 @@ import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -25,7 +24,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-@ActiveProfiles("test")
 class RedisIntegrationTest {
 
     @Autowired

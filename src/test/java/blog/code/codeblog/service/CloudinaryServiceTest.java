@@ -119,7 +119,7 @@ class CloudinaryServiceTest {
         when(cloudinary.uploader()).thenReturn(uploader);
         when(uploader.upload(any(byte[].class), anyMap())).thenThrow(new IOException("Cloudinary upload failed"));
 
-        // Act & Assert
+
         assertThrows(IOException.class, () ->
             cloudinaryService.uploadFile(file, FlowImageFlag.PROFILE, UUID.randomUUID().toString(), null)
         );

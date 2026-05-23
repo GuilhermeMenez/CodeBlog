@@ -36,7 +36,6 @@ class RedisConfigTest {
     void objectMapperReturnsConfiguredMapper() {
         ObjectMapper mapper = config.objectMapper();
         assertNotNull(mapper);
-        // Verifica que o JavaTimeModule está registrado
         assertNotNull(mapper.getRegisteredModuleIds());
     }
 
@@ -44,7 +43,6 @@ class RedisConfigTest {
     @DisplayName("redisObjectMapper returns ObjectMapper with default typing enabled")
     void redisObjectMapperReturnsConfiguredMapper() {
         assertNotNull(redisObjectMapper);
-        // Verifica que o JavaTimeModule está registrado
         assertNotNull(redisObjectMapper.getRegisteredModuleIds());
     }
 
@@ -73,14 +71,12 @@ class RedisConfigTest {
         );
 
         assertNotNull(manager);
-        // Verifica que os caches específicos estão configurados
         assertNotNull(manager.getCacheNames());
     }
 
     @Test
     @DisplayName("redisConnectionFactory returns LettuceConnectionFactory with correct properties")
     void redisConnectionFactoryReturnsLettuceConnectionFactoryWithCorrectProperties() {
-        // Use reflection to set private fields
         setField(config, "redisHost", "localhost");
         setField(config, "redisPort", 6379);
         setField(config, "redisPassword", "test-password");
@@ -99,7 +95,6 @@ class RedisConfigTest {
     @Test
     @DisplayName("cacheManager has all expected cache configurations")
     void cacheManagerHasExpectedCacheConfigurations() {
-        // Set TTL values via reflection
         setField(config, "followersTtl", 300000L);
         setField(config, "followingTtl", 300000L);
         setField(config, "userTtl", 1800000L);
@@ -111,7 +106,6 @@ class RedisConfigTest {
 
         assertNotNull(manager);
 
-        // Verifica que os caches foram criados com os nomes corretos
         var cache = manager.getCache(RedisConfig.FOLLOWERS_CACHE);
         assertNotNull(cache, "Followers cache should exist");
 

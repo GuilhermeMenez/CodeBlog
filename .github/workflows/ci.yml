@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "master"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'master' && 'prod' || 'ci' }}
+
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: codeblog_test
+          POSTGRES_USER: codeblog
+          POSTGRES_PASSWORD: codeblog
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U codeblog -d codeblog_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Give execute permission to mvnw
+        run: chmod +x ./mvnw
+
+      - name: Build and test
+        env:
+          SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          SPRING_DATA_REDIS_HOST: 127.0.0.1
+          SPRING_DATA_REDIS_PORT: 6379
+          SPRING_DATA_REDIS_USERNAME: default
+          SPRING_DATA_REDIS_PASSWORD: ""
+          API_SECURITY_TOKEN_SECRET: ${{ secrets.JWT_SECRET }}
+          SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/codeblog_test?sslmode=disable
+          SPRING_DATASOURCE_USERNAME: codeblog
+          SPRING_DATASOURCE_PASSWORD: codeblog
+        run: ./mvnw -B verify
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            target/surefire-reports
+            target/failsafe-reports

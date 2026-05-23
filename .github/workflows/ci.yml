@@ -37,6 +37,7 @@ jobs:
 
       - name: Build and test
         env:
+          SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE }}
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
@@ -44,7 +45,7 @@ jobs:
           SPRING_DATA_REDIS_PORT: 6379
           SPRING_DATA_REDIS_USERNAME: default
           SPRING_DATA_REDIS_PASSWORD: ""
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          API_SECURITY_TOKEN_SECRET: ${{ secrets.JWT_SECRET }}
         run: ./mvnw -B verify
 
       - name: Upload test reports

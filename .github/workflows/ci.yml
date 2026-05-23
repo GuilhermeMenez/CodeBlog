@@ -40,10 +40,10 @@ jobs:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-          REDIS_HOST: 127.0.0.1
-          REDIS_PORT: 6379
-          REDIS_USERNAME: default
-          REDIS_PASSWORD: ""
+          SPRING_DATA_REDIS_HOST: 127.0.0.1
+          SPRING_DATA_REDIS_PORT: 6379
+          SPRING_DATA_REDIS_USERNAME: default
+          SPRING_DATA_REDIS_PASSWORD: ""
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: ./mvnw -B verify
 

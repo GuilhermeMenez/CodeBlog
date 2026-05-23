@@ -59,7 +59,7 @@ jobs:
           SPRING_DATA_REDIS_USERNAME: default
           SPRING_DATA_REDIS_PASSWORD: ""
           API_SECURITY_TOKEN_SECRET: ${{ secrets.JWT_SECRET }}
-          SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/codeblog_test
+          SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/codeblog_test?sslmode=disable
           SPRING_DATASOURCE_USERNAME: codeblog
           SPRING_DATASOURCE_PASSWORD: codeblog
         run: ./mvnw -B verify

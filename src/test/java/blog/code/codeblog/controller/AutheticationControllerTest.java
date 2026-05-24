@@ -4,7 +4,7 @@ package blog.code.codeblog.controller;
 import blog.code.codeblog.dto.authentication.RegisterRespondeDTO;
 import blog.code.codeblog.dto.user.CreateUserDTO;
 import blog.code.codeblog.enums.UserRoles;
-import blog.code.codeblog.service.AuthorizationService;
+import blog.code.codeblog.service.AuthenticationService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,7 +21,7 @@ import static org.mockito.Mockito.*;
 class AutheticationControllerTest {
 
     @Mock
-    private AuthorizationService authorizationService;
+    private AuthenticationService authenticationService;
 
     @InjectMocks
     private AutheticationController authenticationController;
@@ -36,13 +36,13 @@ class AutheticationControllerTest {
     void testRegisterSuccess() {
         CreateUserDTO createUserDTO = new CreateUserDTO("Test User", "test@example.com", "plainPassword", UserRoles.COSTUMER, null);
 
-        when(authorizationService.register(createUserDTO)).thenReturn(new RegisterRespondeDTO("mocked-token"));
+        when(authenticationService.register(createUserDTO)).thenReturn(new RegisterRespondeDTO("mocked-token"));
 
         RegisterRespondeDTO tokenResponse = authenticationController.register(createUserDTO);
 
         Assertions.assertNotNull(tokenResponse);
         Assertions.assertEquals("mocked-token", tokenResponse.token());
-        verify(authorizationService, times(1)).register(createUserDTO);
+        verify(authenticationService, times(1)).register(createUserDTO);
     }
 
 }

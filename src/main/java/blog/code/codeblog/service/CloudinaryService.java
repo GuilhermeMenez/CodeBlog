@@ -8,7 +8,6 @@ import com.cloudinary.utils.ObjectUtils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -27,14 +26,8 @@ public class CloudinaryService implements CloudinaryServiceInterface {
     private static final String PROFILE_FOLDER = "profile_pics";
 
     private final Cloudinary cloudinary;
-
-    @Lazy
     private final UserService userService;
-
-    @Lazy
     private final PostService postService;
-
-
 
     public ImageUploadResponseDTO uploadFile(MultipartFile file, FlowImageFlag flag, String userId, String postId) throws IOException {
         logUploadStart(flag, userId, postId);

@@ -29,6 +29,8 @@ public class CommentService implements CommentServiceInterface {
     private final UserService userService;
 
     private final PostService postService;
+    private final TokenService tokenService;
+
 
     @Override
     @CacheEvict(value = POST_COMMENTS_CACHE, allEntries = true)
@@ -54,6 +56,7 @@ public class CommentService implements CommentServiceInterface {
 
     @Override
     @CacheEvict(value = POST_COMMENTS_CACHE, allEntries = true)
+    //verificar se o autor do comentario é o mesmo da requisição comentario
     public void deleteComment(UUID id) {
         log.info("[deleteComment] Attempting to delete comment with id: {}", id);
 
@@ -70,7 +73,7 @@ public class CommentService implements CommentServiceInterface {
     @CacheEvict(value = POST_COMMENTS_CACHE, allEntries = true)
     public CommentResponseDTO updateComment(CommentDTO dto, UUID commentId) {
         log.info("[updateComment] Attempting to update comment. commentId: {}", commentId);
-
+        //verificar se o autor do comentario é o mesmo da requisição comentario
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> {
                     log.warn("[updateComment] Comment not found for update. id: {}", commentId);

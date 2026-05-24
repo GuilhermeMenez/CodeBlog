@@ -2,6 +2,7 @@ package blog.code.codeblog.service;
 
 import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
 import blog.code.codeblog.enums.FlowImageFlag;
+import blog.code.codeblog.service.interfaces.CloudinaryServiceInterface;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import jakarta.persistence.EntityNotFoundException;
@@ -18,7 +19,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CloudinaryService {
+public class CloudinaryService implements CloudinaryServiceInterface {
 
     private static final String URL_KEY = "url";
     private static final String PUBLIC_ID_KEY = "public_id";
@@ -31,7 +32,7 @@ public class CloudinaryService {
     private final UserService userService;
 
     @Lazy
-    private final PostServiceImpl postServiceImpl;
+    private final PostService postService;
 
 
 
@@ -69,7 +70,7 @@ public class CloudinaryService {
         return switch (flag) {
             case POST -> {
                 log.info("Processing as POST_IMAGE for post: {}", postId);
-                yield postServiceImpl.saveUploadedImage(UUID.fromString(postId), imageUrl, publicId);
+                yield postService.saveUploadedImage(UUID.fromString(postId), imageUrl, publicId);
             }
             case PROFILE -> {
                 log.info("Processing as USER_AVATAR for user: {}", userId);
@@ -91,7 +92,7 @@ public class CloudinaryService {
     public Map<String, Object> deleteFile(String publicId) throws IOException {
         log.info("Deleting file with publicId: {}", publicId);
 
-        if (postServiceImpl.deleteImage(publicId)) {
+        if (postService.deleteImage(publicId)) {
             return cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
         }
 

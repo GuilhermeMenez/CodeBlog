@@ -10,6 +10,7 @@ import blog.code.codeblog.model.User;
 import blog.code.codeblog.model.UserFollow;
 import blog.code.codeblog.repository.UserFollowRepository;
 import blog.code.codeblog.repository.UserRepository;
+import blog.code.codeblog.service.interfaces.UserServiceInterface;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -33,7 +34,7 @@ import static blog.code.codeblog.config.RedisConfig.*;
 
 @Slf4j
 @Service
-public class UserService {
+public class UserService implements UserServiceInterface {
     @Autowired
     UserRepository userRepository;
 

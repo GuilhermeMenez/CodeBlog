@@ -24,7 +24,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class CloudinaryServiceTest {
+class CloudinaryServiceInterfaceTest {
 
     @Mock
     private Cloudinary cloudinary;
@@ -36,13 +36,13 @@ class CloudinaryServiceTest {
     private UserService userService;
 
     @Mock
-    private PostServiceImpl postServiceImpl;
+    private PostService postService;
 
     private CloudinaryService cloudinaryService;
 
     @BeforeEach
     void setUp() {
-        cloudinaryService = new CloudinaryService(cloudinary, userService, postServiceImpl);
+        cloudinaryService = new CloudinaryService(cloudinary, userService, postService);
     }
 
     private MultipartFile createMockFile() {
@@ -98,7 +98,7 @@ class CloudinaryServiceTest {
 
         when(cloudinary.uploader()).thenReturn(uploader);
         when(uploader.upload(any(byte[].class), anyMap())).thenReturn(uploadResponse);
-        when(postServiceImpl.saveUploadedImage(eq(postId), eq(imageUrl), eq(publicId)))
+        when(postService.saveUploadedImage(eq(postId), eq(imageUrl), eq(publicId)))
                 .thenReturn(expectedResponse);
 
         ImageUploadResponseDTO result = cloudinaryService.uploadFile(file, FlowImageFlag.POST, null, postId.toString());
@@ -108,7 +108,7 @@ class CloudinaryServiceTest {
         assertEquals(expectedResponse.imageUrl(), result.imageUrl());
         assertEquals(expectedResponse.publicId(), result.publicId());
         verify(cloudinary.uploader()).upload(any(byte[].class), anyMap());
-        verify(postServiceImpl).saveUploadedImage(eq(postId), eq(imageUrl), eq(publicId));
+        verify(postService).saveUploadedImage(eq(postId), eq(imageUrl), eq(publicId));
     }
 
     @Test
@@ -163,7 +163,7 @@ class CloudinaryServiceTest {
         Map<String, Object> deleteResponse = new HashMap<>();
         deleteResponse.put("result", "ok");
 
-        when(postServiceImpl.deleteImage(publicId)).thenReturn(true);
+        when(postService.deleteImage(publicId)).thenReturn(true);
         when(cloudinary.uploader()).thenReturn(uploader);
         when(uploader.destroy(eq(publicId), anyMap())).thenReturn(deleteResponse);
 
@@ -171,7 +171,7 @@ class CloudinaryServiceTest {
 
         assertNotNull(result);
         assertEquals("ok", result.get("result"));
-        verify(postServiceImpl).deleteImage(publicId);
+        verify(postService).deleteImage(publicId);
         verify(cloudinary.uploader()).destroy(eq(publicId), anyMap());
         verify(userService, never()).deleteProfilePic(anyString());
     }
@@ -183,7 +183,7 @@ class CloudinaryServiceTest {
         Map<String, Object> deleteResponse = new HashMap<>();
         deleteResponse.put("result", "ok");
 
-        when(postServiceImpl.deleteImage(publicId)).thenReturn(false);
+        when(postService.deleteImage(publicId)).thenReturn(false);
         when(userService.deleteProfilePic(publicId)).thenReturn(true);
         when(cloudinary.uploader()).thenReturn(uploader);
         when(uploader.destroy(eq(publicId), anyMap())).thenReturn(deleteResponse);
@@ -192,7 +192,7 @@ class CloudinaryServiceTest {
 
         assertNotNull(result);
         assertEquals("ok", result.get("result"));
-        verify(postServiceImpl).deleteImage(publicId);
+        verify(postService).deleteImage(publicId);
         verify(userService).deleteProfilePic(publicId);
         verify(cloudinary.uploader()).destroy(eq(publicId), anyMap());
     }
@@ -202,14 +202,14 @@ class CloudinaryServiceTest {
     void deleteFileShouldThrowWhenImageNotFound() {
         String publicId = "unknown/test-image";
 
-        when(postServiceImpl.deleteImage(publicId)).thenReturn(false);
+        when(postService.deleteImage(publicId)).thenReturn(false);
         when(userService.deleteProfilePic(publicId)).thenReturn(false);
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class, () ->
             cloudinaryService.deleteFile(publicId)
         );
         assertEquals("Image with publicId " + publicId + " not found", exception.getMessage());
-        verify(postServiceImpl).deleteImage(publicId);
+        verify(postService).deleteImage(publicId);
         verify(userService).deleteProfilePic(publicId);
     }
 }

@@ -39,7 +39,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class PostServiceImplTest {
+class PostServiceInterfaceImplTest {
 
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 10;
@@ -60,7 +60,7 @@ class PostServiceImplTest {
     @Mock
     private UserFollowRepository userFollowRepository;
     @InjectMocks
-    private PostServiceImpl postService;
+    private PostService postService;
 
     @BeforeEach
     void globalSetUp() {

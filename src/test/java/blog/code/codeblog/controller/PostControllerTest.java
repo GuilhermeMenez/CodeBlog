@@ -4,7 +4,7 @@ import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.post.PutPostDTO;
 import blog.code.codeblog.dto.post.CreatePostRequestDTO;
 import blog.code.codeblog.dto.post.PostResponseDTO;
-import blog.code.codeblog.service.interfaces.PostService;
+import blog.code.codeblog.service.interfaces.PostServiceInterface;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,7 @@ import static org.mockito.Mockito.*;
 class PostControllerTest {
 
     @Mock
-    private PostService postService;
+    private PostServiceInterface postServiceInterface;
 
     @InjectMocks
     private PostController postController;
@@ -76,7 +76,7 @@ class PostControllerTest {
                 .empty(false)
                 .build();
 
-        when(postService.getAllUserPosts(userId, page, size)).thenReturn(pageResponse);
+        when(postServiceInterface.getAllUserPosts(userId, page, size)).thenReturn(pageResponse);
 
         PageResponseDTO<PostResponseDTO> result = postController.getAllUserPosts(userId, page, size);
 
@@ -88,7 +88,7 @@ class PostControllerTest {
         assertTrue(result.last());
         assertEquals(0, result.currentPage());
         assertEquals(1, result.totalPages());
-        verify(postService, times(1)).getAllUserPosts(userId, page, size);
+        verify(postServiceInterface, times(1)).getAllUserPosts(userId, page, size);
     }
 
 //    @Test
@@ -118,13 +118,13 @@ class PostControllerTest {
         );
 
         String generatedPostId = UUID.randomUUID().toString();
-        when(postService.save(any(CreatePostRequestDTO.class))).thenReturn(generatedPostId);
+        when(postServiceInterface.save(any(CreatePostRequestDTO.class))).thenReturn(generatedPostId);
 
         String response = postController.createPost(requestDTO);
 
         assertNotNull(response);
         assertEquals(generatedPostId, response);
-        verify(postService, times(1)).save(any(CreatePostRequestDTO.class));
+        verify(postServiceInterface, times(1)).save(any(CreatePostRequestDTO.class));
     }
 
     @Test
@@ -141,13 +141,13 @@ class PostControllerTest {
                 .createdAt(LocalDate.now())
                 .images(Map.of())
                 .build();
-        when(postService.updatePost(postId, updatedPost)).thenReturn(mockUpdatedPost);
+        when(postServiceInterface.updatePost(postId, updatedPost)).thenReturn(mockUpdatedPost);
 
         PostResponseDTO result = postController.updatePost(postId, updatedPost);
 
         assertNotNull(result);
         assertEquals("New Title", result.title());
-        verify(postService, times(1)).updatePost(postId, updatedPost);
+        verify(postServiceInterface, times(1)).updatePost(postId, updatedPost);
     }
 
     @Test
@@ -156,13 +156,13 @@ class PostControllerTest {
         UUID postId = UUID.randomUUID();
         PutPostDTO updatedPost = new PutPostDTO("New Title", "New Content", UUID.randomUUID(), UUID.randomUUID());
 
-        when(postService.updatePost(postId, updatedPost)).thenThrow(new RuntimeException("Unexpected error updating post"));
+        when(postServiceInterface.updatePost(postId, updatedPost)).thenThrow(new RuntimeException("Unexpected error updating post"));
 
         RuntimeException exception =
                 assertThrows(RuntimeException.class, () -> postController.updatePost(postId, updatedPost));
 
         assertEquals("Unexpected error updating post", exception.getMessage());
-        verify(postService, times(1)).updatePost(postId, updatedPost);
+        verify(postServiceInterface, times(1)).updatePost(postId, updatedPost);
     }
 
     @Test
@@ -170,10 +170,10 @@ class PostControllerTest {
     void deletePost() {
         UUID postId = UUID.randomUUID();
         String token = UUID.randomUUID().toString();
-        doNothing().when(postService).deletePost(postId, token);
+        doNothing().when(postServiceInterface).deletePost(postId, token);
 
         assertDoesNotThrow(() -> postController.deletePost(postId, token));
-        verify(postService, times(1)).deletePost(postId, token);
+        verify(postServiceInterface, times(1)).deletePost(postId, token);
     }
 
 }

@@ -2,6 +2,7 @@ package blog.code.codeblog.service;
 
 
 import blog.code.codeblog.model.User;
+import blog.code.codeblog.service.interfaces.TokenServiceInterface;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
@@ -22,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
-public class TokenService {
+public class TokenService implements TokenServiceInterface {
 
     @Value("${api.security.token.secret}")
     private String secret;

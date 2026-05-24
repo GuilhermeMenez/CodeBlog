@@ -6,7 +6,7 @@ import blog.code.codeblog.model.Comment;
 import blog.code.codeblog.model.Post;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.repository.CommentRepository;
-import blog.code.codeblog.service.interfaces.CommentService;
+import blog.code.codeblog.service.interfaces.CommentServiceInterface;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,13 +22,13 @@ import static blog.code.codeblog.config.RedisConfig.POST_COMMENTS_CACHE;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CommentServiceImpl implements CommentService {
+public class CommentService implements CommentServiceInterface {
 
     private final CommentRepository commentRepository;
 
     private final UserService userService;
 
-    private final PostServiceImpl postServiceImpl;
+    private final PostService postService;
 
     @Override
     @CacheEvict(value = POST_COMMENTS_CACHE, allEntries = true)
@@ -40,7 +40,7 @@ public class CommentServiceImpl implements CommentService {
         }
 
         User commentAuthor = userService.getReference(comment.authorId());
-        Post post = postServiceImpl.getReference(comment.postId());
+        Post post = postService.getReference(comment.postId());
 
         Comment newComment = new Comment(comment.content(), commentAuthor, post, commentAuthor.getName());
 

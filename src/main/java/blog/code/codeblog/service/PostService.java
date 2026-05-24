@@ -15,7 +15,7 @@ import blog.code.codeblog.repository.CommentRepository;
 import blog.code.codeblog.repository.PostRepository;
 import blog.code.codeblog.repository.UserFollowRepository;
 import blog.code.codeblog.repository.UserRepository;
-import blog.code.codeblog.service.interfaces.PostService;
+import blog.code.codeblog.service.interfaces.PostServiceInterface;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +40,7 @@ import static blog.code.codeblog.config.RedisConfig.*;
 
 @Slf4j
 @Service
-public class PostServiceImpl implements PostService {
+public class PostService implements PostServiceInterface {
 
     @Value("${feed.recent-posts-days}")
     private int recentPostsDays;
@@ -159,7 +159,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Cacheable(
             value = FEED_CACHE,
-            key = "#userId + '_' + (T(System).currentTimeMillis() / @postServiceImpl.feedSeedIntervalMs) + '_' + #page + '_' + #size",
+            key = "#userId + '_' + (T(System).currentTimeMillis() / @postService.feedSeedIntervalMs) + '_' + #page + '_' + #size",
             unless = "#result.empty == true"
     )
     public PageResponseDTO<PostResponseDTO> getBalancedFeed(UUID userId, int page, int size) {

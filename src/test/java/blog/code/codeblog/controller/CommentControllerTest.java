@@ -2,7 +2,7 @@ package blog.code.codeblog.controller;
 
 import blog.code.codeblog.dto.post.CommentDTO;
 import blog.code.codeblog.dto.comment.CommentResponseDTO;
-import blog.code.codeblog.service.interfaces.CommentService;
+import blog.code.codeblog.service.interfaces.CommentServiceInterface;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +23,7 @@ import static org.mockito.Mockito.*;
 class CommentControllerTest {
 
     @Mock
-    private CommentService commentService;
+    private CommentServiceInterface commentServiceInterface;
 
     @InjectMocks
     private CommentController commentController;
@@ -44,7 +44,7 @@ class CommentControllerTest {
     @Test
     @DisplayName("Should create a comment successfully")
     void createCommentShouldReturnCreatedComment() {
-        when(commentService.saveComment(any(CommentDTO.class))).thenReturn(commentResponseDTO);
+        when(commentServiceInterface.saveComment(any(CommentDTO.class))).thenReturn(commentResponseDTO);
 
         CommentResponseDTO response = commentController.createComment(commentDTO);
 
@@ -54,14 +54,14 @@ class CommentControllerTest {
         assertEquals("Test Author", response.author());
         assertNotNull(response.createdAt());
 
-        verify(commentService, times(1)).saveComment(any(CommentDTO.class));
+        verify(commentServiceInterface, times(1)).saveComment(any(CommentDTO.class));
     }
 
     @Test
     @DisplayName("Should update an existing comment")
     void updateCommentShouldReturnUpdatedComment() {
         UUID commentId = UUID.randomUUID();
-        when(commentService.updateComment(any(CommentDTO.class), eq(commentId))).thenReturn(commentResponseDTO);
+        when(commentServiceInterface.updateComment(any(CommentDTO.class), eq(commentId))).thenReturn(commentResponseDTO);
 
         CommentResponseDTO response = commentController.updateComment(commentId, commentDTO);
 
@@ -71,30 +71,30 @@ class CommentControllerTest {
         assertEquals("Test Author", response.author());
         assertNotNull(response.createdAt());
 
-        verify(commentService, times(1)).updateComment(any(CommentDTO.class), eq(commentId));
+        verify(commentServiceInterface, times(1)).updateComment(any(CommentDTO.class), eq(commentId));
     }
 
     @Test
     @DisplayName("Should throw EntityNotFoundException when updating a non-existent comment")
     void updateCommentWhenNotFoundShouldThrowException() {
         UUID commentId = UUID.randomUUID();
-        when(commentService.updateComment(any(CommentDTO.class), eq(commentId)))
+        when(commentServiceInterface.updateComment(any(CommentDTO.class), eq(commentId)))
                 .thenThrow(new EntityNotFoundException("Comment not found with id " + commentId));
 
         EntityNotFoundException thrown = assertThrows(EntityNotFoundException.class, () -> commentController.updateComment(commentId, commentDTO));
         assertEquals("Comment not found with id " + commentId, thrown.getMessage());
-        verify(commentService, times(1)).updateComment(any(CommentDTO.class), eq(commentId));
+        verify(commentServiceInterface, times(1)).updateComment(any(CommentDTO.class), eq(commentId));
     }
 
     @Test
     @DisplayName("Should delete an existing comment")
     void deleteCommentShouldReturnNoContent() {
         UUID commentId = UUID.randomUUID();
-        doNothing().when(commentService).deleteComment(commentId);
+        doNothing().when(commentServiceInterface).deleteComment(commentId);
 
         // Should not throw exception
         assertDoesNotThrow(() -> commentController.deleteComment(commentId));
-        verify(commentService, times(1)).deleteComment(commentId);
+        verify(commentServiceInterface, times(1)).deleteComment(commentId);
     }
 
     @Test
@@ -102,10 +102,10 @@ class CommentControllerTest {
     void deleteCommentWhenNotFoundShouldThrowException() {
         UUID commentId = UUID.randomUUID();
         doThrow(new EntityNotFoundException("Comment not found with id " + commentId))
-                .when(commentService).deleteComment(commentId);
+                .when(commentServiceInterface).deleteComment(commentId);
 
         EntityNotFoundException thrown = assertThrows(EntityNotFoundException.class, () -> commentController.deleteComment(commentId));
         assertEquals("Comment not found with id " + commentId, thrown.getMessage());
-        verify(commentService, times(1)).deleteComment(commentId);
+        verify(commentServiceInterface, times(1)).deleteComment(commentId);
     }
 }

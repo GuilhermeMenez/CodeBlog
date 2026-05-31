@@ -27,6 +27,7 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -36,6 +37,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static blog.code.codeblog.config.RedisConfig.*;
+import static java.util.UUID.fromString;
 
 @Slf4j
 @Service
@@ -118,7 +120,7 @@ public class PostService implements PostServiceInterface {
             for (MultipartFile image : post.images()) {
                 if (image != null && !image.isEmpty()) {
                     try {
-                        cloudinaryService.uploadFile(image, FlowImageFlag.POST, null, savedPost.getId().toString());
+                        cloudinaryService.uploadFile(image, FlowImageFlag.POST, user.getId().toString(), savedPost.getId().toString());
                     } catch (IOException e) {
                         log.error("[save] Failed to upload image for post: {}. Error: {}", savedPost.getId(), e.getMessage());
 
@@ -131,6 +133,41 @@ public class PostService implements PostServiceInterface {
         return savedPost.getId().toString();
     }
 
+
+    private Post getAuthorizedPost(UUID postId) {
+        UUID userIdFromContext = tokenService.getUserIdFromContext();
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> {
+                            log.warn("[getAuthorizedPost] Post not found. postId: {}", postId);
+                            return new EntityNotFoundException("Post not found");
+                        });
+
+        if (!post.getUser().getId().equals(userIdFromContext)){
+            log.warn("[getAuthorizedPost] User not authorized for this action. userId: {}, postId: {}", userIdFromContext, postId);
+            throw new AccessDeniedException("User not authorized for this action");
+        }
+
+        return post;
+    }
+
+    //todo expor no controller
+    public ImageUploadResponseDTO saveImage(UUID postId, MultipartFile image ) throws IOException {
+        Post post = getAuthorizedPost(postId);
+
+        var uploadResponse = cloudinaryService.uploadFile(image, FlowImageFlag.POST, post.getUser().getId().toString(), postId.toString());
+        if (post.getImages() == null) {
+            post.setImages(new HashMap<>());
+        }
+        post.getImages().put(uploadResponse.publicId(), uploadResponse.imageUrl());
+        postRepository.save(post);
+        log.info("[saveImage] Image uploaded for postId: {}", postId);
+
+        return uploadResponse;
+    }
+
+
+
     @Override
     @Caching(evict = {
             @CacheEvict(value = POST_CACHE, key = "#postId"),
@@ -139,7 +176,7 @@ public class PostService implements PostServiceInterface {
     })
     public void deletePost(UUID postId, String token) {
         log.info("[deletePost] Attempting to delete post. postId: {}", postId);
-        UUID userIdFromToken = UUID.fromString(tokenService.getSubjectIdFromToken(token));
+        UUID userIdFromToken = fromString(tokenService.getSubjectIdFromToken(token));
         Post post = postRepository.findById(postId).orElseThrow(() -> {
             log.warn("[deletePost] Post not found. postId: {}", postId);
             return new RuntimeException("Post not found");
@@ -410,7 +447,6 @@ public class PostService implements PostServiceInterface {
                 imagesCopy
         );
     }
-
 
     private CommentResponseDTO convertToCommentResponseDTO(Comment comment) {
         return CommentResponseDTO.builder()

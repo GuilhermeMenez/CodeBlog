@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -143,6 +144,12 @@ public class TokenService implements TokenServiceInterface {
         String token = authHeader.replace("Bearer ", "").trim();
         log.info("[recoverToken] Token recovered successfully");
         return token;
+    }
+
+    public UUID getUserIdFromContext() {
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        log.info("[getUserIdFromContext] Extracted userId from security context: {}", user.getId());
+        return user.getId();
     }
 
 }

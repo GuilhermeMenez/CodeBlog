@@ -15,7 +15,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -37,12 +36,6 @@ class AuthenticationServiceTest {
 	@Mock
 	private AuthenticationManager authenticationManager;
 
-	@Mock
-	private PasswordEncoder passwordEncoder;
-
-	@Mock
-	private CloudinaryService cloudinaryService;
-
 	@BeforeEach
 	@DisplayName("Initial mock setup for AuthenticationServiceTest")
 	void setUp() {
@@ -52,18 +45,19 @@ class AuthenticationServiceTest {
 	@Test
 	@DisplayName("Should register a user successfully")
 	void registerSuccessfully() {
-		CreateUserDTO createUserDTO = new CreateUserDTO("Guilherme", "email@test.com", "123456", UserRoles.COSTUMER, null);
-		String encodedPassword = "encryptedPassword";
-		User newUser = new User("Guilherme", "email@test.com", encodedPassword, UserRoles.COSTUMER);
+		CreateUserDTO createUserDTO = new CreateUserDTO(
+				"Guilherme", "email@test.com", "123456", UserRoles.COSTUMER, null);
+		User newUser = new User("Guilherme", "email@test.com", "encodedPassword", UserRoles.COSTUMER);
 		String token = "testToken";
 
 		when(userService.findByLogin(createUserDTO.email())).thenReturn(null);
-		when(passwordEncoder.encode(createUserDTO.password())).thenReturn(encodedPassword);
-		doNothing().when(userService).saveUser(any(User.class));
+		// O saveUser recebe CreateUserDTO, não um User
+		doNothing().when(userService).saveUser(any(CreateUserDTO.class));
 		when(tokenService.generateToken(any(User.class))).thenReturn(token);
 
 		Authentication authentication = mock(Authentication.class);
-		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(authentication);
+		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+				.thenReturn(authentication);
 		when(authentication.getPrincipal()).thenReturn(newUser);
 
 		RegisterRespondeDTO result = authenticationService.register(createUserDTO);
@@ -72,8 +66,8 @@ class AuthenticationServiceTest {
 		assertEquals(token, result.token());
 
 		verify(userService).findByLogin(createUserDTO.email());
-		verify(passwordEncoder).encode(createUserDTO.password());
-		verify(userService).saveUser(any(User.class));
+		// Verificar que saveUser foi chamado com CreateUserDTO
+		verify(userService).saveUser(any(CreateUserDTO.class));
 		verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
 		verify(tokenService).generateToken(any(User.class));
 	}
@@ -81,14 +75,17 @@ class AuthenticationServiceTest {
 	@Test
 	@DisplayName("Should throw exception when registering a user with an already registered email")
 	void registerWithExistingUserThrowsException() {
-		CreateUserDTO createUserDTO = new CreateUserDTO("Jane Doe", "janedoe@example.com", "password123", UserRoles.COSTUMER, null);
+		CreateUserDTO createUserDTO = new CreateUserDTO(
+				"Jane Doe", "janedoe@example.com", "password123", UserRoles.COSTUMER, null);
 		User existingUser = new User("Jane Doe", "janedoe@example.com", "encodedPassword123", UserRoles.COSTUMER);
 
 		when(userService.findByLogin(createUserDTO.email())).thenReturn(existingUser);
 
-		assertThrows(IllegalArgumentException.class, () -> authenticationService.register(createUserDTO));
+		assertThrows(IllegalArgumentException.class,
+				() -> authenticationService.register(createUserDTO));
 
-		verify(userService, never()).saveUser(any(User.class));
+		// saveUser não deve ser chamado – ajuste do matcher
+		verify(userService, never()).saveUser(any(CreateUserDTO.class));
 		verify(authenticationManager, never()).authenticate(any(UsernamePasswordAuthenticationToken.class));
 		verify(tokenService, never()).generateToken(any(User.class));
 	}
@@ -99,11 +96,13 @@ class AuthenticationServiceTest {
 		User user = new User("Guilherme", "email@test.com", "encryptedPassword", UserRoles.COSTUMER);
 		String token = "testToken";
 		Authentication authentication = mock(Authentication.class);
-		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(authentication);
+		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+				.thenReturn(authentication);
 		when(authentication.getPrincipal()).thenReturn(user);
 		when(tokenService.generateToken(user)).thenReturn(token);
 
 		var loginResponse = authenticationService.login(new AuthenticationDTO("email@test.com", "123456"));
+
 		assertNotNull(loginResponse);
 		assertEquals(token, loginResponse.token());
 		verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
@@ -115,8 +114,10 @@ class AuthenticationServiceTest {
 	void loginWithInvalidCredentialsThrowsException() {
 		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
 				.thenThrow(new AuthenticationException("Bad credentials") {});
+
 		assertThrows(AuthenticationException.class, () ->
 				authenticationService.login(new AuthenticationDTO("email@test.com", "wrongpassword")));
+
 		verify(tokenService, never()).generateToken(any(User.class));
 	}
 

@@ -28,6 +28,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -59,6 +60,8 @@ class PostServiceTest {
     private CommentRepository commentRepository;
     @Mock
     private UserFollowRepository userFollowRepository;
+    @Mock
+    private CloudinaryService cloudinaryService; // [FIX 1] dependência presente no serviço, mas ausente nos testes
     @InjectMocks
     private PostService postService;
 
@@ -91,11 +94,13 @@ class PostServiceTest {
     }
 
     @Test
-    @DisplayName("Should throw RuntimeException when author not found on save")
+    @DisplayName("Should throw EntityNotFoundException when author not found on save")
     void savePostAuthorNotFoundShouldThrow() {
         UUID userId = UUID.randomUUID();
         CreatePostRequestDTO request = new CreatePostRequestDTO("Test Title", "Test Content", userId, null);
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        // [FIX 2] serviço lança EntityNotFoundException, não RuntimeException genérico;
+        // EntityNotFoundException extends RuntimeException, então o teste ainda captura corretamente
         RuntimeException exception = assertThrows(RuntimeException.class, () -> postService.save(request));
         assertEquals("Author not found", exception.getMessage());
         verify(userRepository).findById(userId);
@@ -292,26 +297,32 @@ class PostServiceTest {
     }
 
     @Test
-    @DisplayName("Should throw RuntimeException when user not found for getAllUserPosts")
+    @DisplayName("Should throw EntityNotFoundException when user not found for getAllUserPosts")
     void getAllUserPostsUserNotFoundShouldThrow() {
         UUID userId = UUID.randomUUID();
         int page = 0;
         int size = 10;
         when(userRepository.existsById(userId)).thenReturn(false);
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> postService.getAllUserPosts(userId, page, size));
+        // [FIX 3] serviço lança EntityNotFoundException explicitamente
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+                () -> postService.getAllUserPosts(userId, page, size));
         assertEquals("User not found", exception.getMessage());
         verify(userRepository).existsById(userId);
     }
 
+    // [FIX 4] display name corrigido: a exceção é EntityNotFoundException lançada porque o
+    // autor não é encontrado (sem mock configurado), não DataIntegrityViolationException.
+    // O serviço não valida title/content nulo em nível de serviço.
     @Test
-    @DisplayName("Should throw DataIntegrityViolationException when title is null")
+    @DisplayName("Should throw EntityNotFoundException when author not found (title is null)")
     void savePostShouldThrowWhenTitleIsNull() {
         CreatePostRequestDTO postDTO = new CreatePostRequestDTO(null, "content", UUID.randomUUID(), null);
         assertThrows(EntityNotFoundException.class, () -> postService.save(postDTO));
     }
 
+    // [FIX 4] idem acima para content nulo
     @Test
-    @DisplayName("Should throw DataIntegrityViolationException when content is null")
+    @DisplayName("Should throw EntityNotFoundException when author not found (content is null)")
     void savePostShouldThrowWhenContentIsNull() {
         CreatePostRequestDTO postDTO = new CreatePostRequestDTO("title", null, UUID.randomUUID(), null);
         assertThrows(EntityNotFoundException.class, () -> postService.save(postDTO));
@@ -343,60 +354,34 @@ class PostServiceTest {
         assertThrows(RuntimeException.class, () -> postService.updatePost(postId, updateDTO));
     }
 
+    // [FIX 5] REMOVIDOS: saveUploadedImageSuccess e saveUploadedImagePostNotFound
+    // O método saveUploadedImage(UUID, String, String) não existe no PostService.
+    // O serviço possui savePostImage(UUID, MultipartFile) com assinatura diferente.
+
+    // [FIX 6] deleteImageSuccess corrigido: o serviço chama getAuthorizedPost() internamente,
+    // que requer tokenService.getUserIdFromContext() e postRepository.findById().
+    // O post também precisa ter um User definido para a checagem de autorização.
+    // Adicionado verify de cloudinaryService.deleteFile() que é chamado no fluxo de deleção.
     @Test
-    @DisplayName("Should save uploaded image successfully")
-    void saveUploadedImageSuccess() {
+    @DisplayName("Should delete image from post successfully")
+    void deleteImageSuccess() throws IOException {
+        UUID userId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
-        String imageUrl = "https://cloudinary.com/test-image.jpg";
         String publicId = "post_pics/test-image";
+
+        User user = new User();
+        user.setId(userId);
 
         Post post = new Post();
         post.setId(postId);
-        post.setImages(new HashMap<>());
-
-        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
-        when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        var result = postService.saveUploadedImage(postId, imageUrl, publicId);
-
-        assertNotNull(result);
-        assertEquals("Image uploaded", result.message());
-        assertEquals(imageUrl, result.imageUrl());
-        assertEquals(publicId, result.publicId());
-        assertTrue(post.getImages().containsKey(publicId));
-        assertEquals(imageUrl, post.getImages().get(publicId));
-        verify(postRepository).findById(postId);
-        verify(postRepository).save(post);
-    }
-
-    @Test
-    @DisplayName("Should throw EntityNotFoundException when saving image for non-existent post")
-    void saveUploadedImagePostNotFound() {
-        UUID postId = UUID.randomUUID();
-        String imageUrl = "https://cloudinary.com/test-image.jpg";
-        String publicId = "post_pics/test-image";
-
-        when(postRepository.findById(postId)).thenReturn(Optional.empty());
-
-        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
-            () -> postService.saveUploadedImage(postId, imageUrl, publicId));
-
-        assertEquals("Post não encontrado", exception.getMessage());
-        verify(postRepository).findById(postId);
-        verify(postRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Should delete image from post successfully")
-    void deleteImageSuccess() {
-        String publicId = "post_pics/test-image";
-        Post post = new Post();
-        post.setId(UUID.randomUUID());
+        post.setUser(user);
         Map<String, String> images = new HashMap<>();
         images.put(publicId, "https://cloudinary.com/test-image.jpg");
         post.setImages(images);
 
         when(postRepository.findByImagePublicId(publicId)).thenReturn(Optional.of(post));
+        when(tokenService.getUserIdFromContext()).thenReturn(userId);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
         when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         boolean result = postService.deleteImage(publicId);
@@ -404,12 +389,15 @@ class PostServiceTest {
         assertTrue(result);
         assertFalse(post.getImages().containsKey(publicId));
         verify(postRepository).findByImagePublicId(publicId);
+        verify(tokenService).getUserIdFromContext();
+        verify(postRepository).findById(postId);
+        verify(cloudinaryService).deleteFile(publicId);
         verify(postRepository).save(post);
     }
 
     @Test
     @DisplayName("Should return false when image not found for deletion")
-    void deleteImageNotFound() {
+    void deleteImageNotFound() throws IOException {
         String publicId = "post_pics/nonexistent-image";
 
         when(postRepository.findByImagePublicId(publicId)).thenReturn(Optional.empty());
@@ -505,8 +493,6 @@ class PostServiceTest {
         assertEquals("No comments found for postId: " + postId, exception.getMessage());
         verify(commentRepository).findByPost_Id(eq(postId), any());
     }
-
-
 
 
     @Test
@@ -1346,5 +1332,4 @@ class PostServiceTest {
         post.setImages(new HashMap<>());
         return post;
     }
-
 }

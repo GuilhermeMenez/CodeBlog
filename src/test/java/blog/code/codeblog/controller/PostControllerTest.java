@@ -4,7 +4,7 @@ import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.post.PutPostDTO;
 import blog.code.codeblog.dto.post.CreatePostRequestDTO;
 import blog.code.codeblog.dto.post.PostResponseDTO;
-import blog.code.codeblog.service.interfaces.PostServiceInterface;
+import blog.code.codeblog.service.PostService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,7 @@ import static org.mockito.Mockito.*;
 class PostControllerTest {
 
     @Mock
-    private PostServiceInterface postServiceInterface;
+    private PostService postService;
 
     @InjectMocks
     private PostController postController;
@@ -76,7 +76,7 @@ class PostControllerTest {
                 .empty(false)
                 .build();
 
-        when(postServiceInterface.getAllUserPosts(userId, page, size)).thenReturn(pageResponse);
+        when(postService.getAllUserPosts(userId, page, size)).thenReturn(pageResponse);
 
         PageResponseDTO<PostResponseDTO> result = postController.getAllUserPosts(userId, page, size);
 
@@ -88,24 +88,36 @@ class PostControllerTest {
         assertTrue(result.last());
         assertEquals(0, result.currentPage());
         assertEquals(1, result.totalPages());
-        verify(postServiceInterface, times(1)).getAllUserPosts(userId, page, size);
+        verify(postService, times(1)).getAllUserPosts(userId, page, size);
     }
 
-//    @Test
-//    @DisplayName("Should return balanced feed for a user")
-//    void getBalancedFeed() {
-//        UUID userId = UUID.randomUUID();
-//        int page = 0;
-//        int size = 10;
-//        when(postService.getBalancedFeed(userId, page, size)).thenReturn(mockPostList);
-//
-//        List<PostResponseDTO> result = postController.getBalancedFeed(userId, page, size);
-//
-//        assertNotNull(result);
-//        assertEquals(2, result.size());
-//        assertEquals("Primeiro Post", result.get(0).title());
-//        verify(postService, times(1)).getBalancedFeed(userId, page, size);
-//    }
+    @Test
+    @DisplayName("Should return balanced feed for a user")
+    void getBalancedFeed() {
+        UUID userId = UUID.randomUUID();
+        int page = 0;
+        int size = 10;
+
+        PageResponseDTO<PostResponseDTO> pageResponse = PageResponseDTO.<PostResponseDTO>builder()
+                .content(mockPostList)
+                .currentPage(0)
+                .totalPages(1)
+                .totalElements(2)
+                .size(10)
+                .first(true)
+                .last(true)
+                .empty(false)
+                .build();
+
+        when(postService.getBalancedFeed(userId, page, size)).thenReturn(pageResponse);
+
+        PageResponseDTO<PostResponseDTO> result = postController.getBalancedFeed(userId, page, size);
+
+        assertNotNull(result);
+        assertEquals(2, result.content().size());
+        assertEquals("Primeiro Post", result.content().getFirst().title());
+        verify(postService, times(1)).getBalancedFeed(userId, page, size);
+    }
 
     @Test
     @DisplayName("Should create a new post")
@@ -118,13 +130,13 @@ class PostControllerTest {
         );
 
         String generatedPostId = UUID.randomUUID().toString();
-        when(postServiceInterface.save(any(CreatePostRequestDTO.class))).thenReturn(generatedPostId);
+        when(postService.save(any(CreatePostRequestDTO.class))).thenReturn(generatedPostId);
 
         String response = postController.createPost(requestDTO);
 
         assertNotNull(response);
         assertEquals(generatedPostId, response);
-        verify(postServiceInterface, times(1)).save(any(CreatePostRequestDTO.class));
+        verify(postService, times(1)).save(any(CreatePostRequestDTO.class));
     }
 
     @Test
@@ -141,13 +153,13 @@ class PostControllerTest {
                 .createdAt(LocalDate.now())
                 .images(Map.of())
                 .build();
-        when(postServiceInterface.updatePost(postId, updatedPost)).thenReturn(mockUpdatedPost);
+        when(postService.updatePost(postId, updatedPost)).thenReturn(mockUpdatedPost);
 
         PostResponseDTO result = postController.updatePost(postId, updatedPost);
 
         assertNotNull(result);
         assertEquals("New Title", result.title());
-        verify(postServiceInterface, times(1)).updatePost(postId, updatedPost);
+        verify(postService, times(1)).updatePost(postId, updatedPost);
     }
 
     @Test
@@ -156,13 +168,13 @@ class PostControllerTest {
         UUID postId = UUID.randomUUID();
         PutPostDTO updatedPost = new PutPostDTO("New Title", "New Content", UUID.randomUUID(), UUID.randomUUID());
 
-        when(postServiceInterface.updatePost(postId, updatedPost)).thenThrow(new RuntimeException("Unexpected error updating post"));
+        when(postService.updatePost(postId, updatedPost)).thenThrow(new RuntimeException("Unexpected error updating post"));
 
         RuntimeException exception =
                 assertThrows(RuntimeException.class, () -> postController.updatePost(postId, updatedPost));
 
         assertEquals("Unexpected error updating post", exception.getMessage());
-        verify(postServiceInterface, times(1)).updatePost(postId, updatedPost);
+        verify(postService, times(1)).updatePost(postId, updatedPost);
     }
 
     @Test
@@ -170,10 +182,10 @@ class PostControllerTest {
     void deletePost() {
         UUID postId = UUID.randomUUID();
         String token = UUID.randomUUID().toString();
-        doNothing().when(postServiceInterface).deletePost(postId, token);
+        doNothing().when(postService).deletePost(postId, token);
 
         assertDoesNotThrow(() -> postController.deletePost(postId, token));
-        verify(postServiceInterface, times(1)).deletePost(postId, token);
+        verify(postService, times(1)).deletePost(postId, token);
     }
 
 }

@@ -43,33 +43,25 @@ import static java.util.UUID.fromString;
 @Service
 public class PostService implements PostServiceInterface {
 
+    @Autowired
+    PostRepository postRepository;
+    @Autowired
+    TokenService tokenService;
+    @Autowired
+    UserRepository userRepository;
+    @Autowired
+    CloudinaryService cloudinaryService;
+    @Autowired
+    CommentRepository commentRepository;
+    @Autowired
+    UserFollowRepository userFollowRepository;
     @Value("${feed.recent-posts-days}")
     private int recentPostsDays;
-
     @Getter
     @Value("${feed.seed-interval-ms}")
     private long feedSeedIntervalMs;
-
     @Value("${feed.max-posts-fetch-limit}")
     private int maxPostsFetchLimit;
-
-    @Autowired
-    PostRepository postRepository;
-
-    @Autowired
-    TokenService tokenService;
-
-    @Autowired
-    UserRepository userRepository;
-
-    @Autowired
-    CloudinaryService cloudinaryService;
-
-    @Autowired
-    CommentRepository commentRepository;
-
-    @Autowired
-    UserFollowRepository userFollowRepository;
 
     @Override
     public List<PostResponseDTO> findAll() {
@@ -97,6 +89,7 @@ public class PostService implements PostServiceInterface {
             @CacheEvict(value = FEED_CACHE, allEntries = true)
     })
     public String save(CreatePostRequestDTO post) {
+        //todo pegar o user id do token do contexto
         log.info("[save] Attempting to save new post for authorId: {}", post.authorId());
 
         User user = userRepository.findById(post.authorId())
@@ -114,23 +107,27 @@ public class PostService implements PostServiceInterface {
                 .build();
 
         Post savedPost = postRepository.save(newPost);
-
-        if (post.images() != null && !post.images().isEmpty()) {
-            log.info("[save] Processing {} images for post: {}", post.images().size(), savedPost.getId());
-            for (MultipartFile image : post.images()) {
-                if (image != null && !image.isEmpty()) {
-                    try {
-                        cloudinaryService.uploadFile(image, FlowImageFlag.POST, user.getId().toString(), savedPost.getId().toString());
-                    } catch (IOException e) {
-                        log.error("[save] Failed to upload image for post: {}. Error: {}", savedPost.getId(), e.getMessage());
-
-                    }
-                }
-            }
+        try {
+            processImages(savedPost, post.images());
+        } catch (IOException e) {
+            log.error("[save] Failed to process images for post: {}. Error: {}", savedPost.getId(), e.getMessage());
         }
 
         log.info("[save] Post saved successfully. postId: {}", savedPost.getId());
         return savedPost.getId().toString();
+    }
+
+    private void processImages(Post post, List<MultipartFile> images) throws IOException {
+        if (images != null && !images.isEmpty()) {
+            log.info("[save] Processing {} images for post: {}", images.size(), post.getId());
+            for (MultipartFile image : images) {
+                if (image != null) {
+                    savePostImage(post.getId(), image);
+                }
+            }
+        } else {
+            log.info("[save] No images found for post: {}", post.getId());
+        }
     }
 
 
@@ -139,11 +136,11 @@ public class PostService implements PostServiceInterface {
 
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> {
-                            log.warn("[getAuthorizedPost] Post not found. postId: {}", postId);
-                            return new EntityNotFoundException("Post not found");
-                        });
+                    log.warn("[getAuthorizedPost] Post not found. postId: {}", postId);
+                    return new EntityNotFoundException("Post not found");
+                });
 
-        if (!post.getUser().getId().equals(userIdFromContext)){
+        if (!post.getUser().getId().equals(userIdFromContext)) {
             log.warn("[getAuthorizedPost] User not authorized for this action. userId: {}, postId: {}", userIdFromContext, postId);
             throw new AccessDeniedException("User not authorized for this action");
         }
@@ -151,21 +148,26 @@ public class PostService implements PostServiceInterface {
         return post;
     }
 
-    //todo expor no controller
-    public ImageUploadResponseDTO saveImage(UUID postId, MultipartFile image ) throws IOException {
+    @Caching(evict = {
+            @CacheEvict(value = POST_CACHE, key = "#postId"),
+            @CacheEvict(value = USER_POSTS_CACHE, allEntries = true)
+    })
+    public ImageUploadResponseDTO savePostImage(UUID postId, MultipartFile image) throws IOException {
         Post post = getAuthorizedPost(postId);
+        log.info("[uploadImage] Uploading image for: {}", postId);
 
         var uploadResponse = cloudinaryService.uploadFile(image, FlowImageFlag.POST, post.getUser().getId().toString(), postId.toString());
+
         if (post.getImages() == null) {
             post.setImages(new HashMap<>());
         }
+
         post.getImages().put(uploadResponse.publicId(), uploadResponse.imageUrl());
         postRepository.save(post);
         log.info("[saveImage] Image uploaded for postId: {}", postId);
 
         return uploadResponse;
     }
-
 
 
     @Override
@@ -330,7 +332,7 @@ public class PostService implements PostServiceInterface {
     @Override
     @Caching(evict = {
             @CacheEvict(value = POST_CACHE, key = "#postId"),
-            @CacheEvict(value =  USER_POSTS_CACHE, allEntries = true)
+            @CacheEvict(value = USER_POSTS_CACHE, allEntries = true)
     })
     public PostResponseDTO updatePost(UUID postId, PutPostDTO updatedPost) throws EntityNotFoundException {
         log.info("[updatePost] Attempting to update post. postId: {}", postId);
@@ -352,38 +354,19 @@ public class PostService implements PostServiceInterface {
     }
 
 
-    @Caching(evict = {
-            @CacheEvict(value = POST_CACHE, key = "#postId"),
-            @CacheEvict(value =  USER_POSTS_CACHE, allEntries = true)
-    })
-    public ImageUploadResponseDTO saveUploadedImage(UUID postId, String imageUrl, String publicId) {
-        log.info("[uploadImage] Uploading image for: {}", postId);
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> {
-                    log.warn("[uploadImage] Post not found id: {}", postId);
-                    return new EntityNotFoundException("Post não encontrado");
-                });
-        post.getImages().put(publicId, imageUrl);
-        postRepository.save(post);
-        log.info("[uploadImage] Image uploaded for postId: {}", postId);
-        return ImageUploadResponseDTO.builder()
-                .message("Image uploaded")
-                .imageUrl(imageUrl)
-                .publicId(publicId)
-                .build();
-    }
-
     public Post getReference(UUID id) {
         return postRepository.getReferenceById(id);
     }
 
     @CacheEvict(value = USER_POSTS_CACHE, allEntries = true)
-    public boolean deleteImage(String publicId) {
+    public boolean deleteImage(String publicId) throws IOException {
         log.info("[deleteImage] Attempting to delete image with publicId: {}", publicId);
         Optional<Post> postOpt = postRepository.findByImagePublicId(publicId);
         if (postOpt.isPresent()) {
             Post post = postOpt.get();
+            getAuthorizedPost(post.getId());
             post.getImages().remove(publicId);
+            cloudinaryService.deleteFile(publicId);
             postRepository.save(post);
             log.info("[deleteImage] Image removed from post: {}", post.getId());
             return true;
@@ -404,7 +387,6 @@ public class PostService implements PostServiceInterface {
             log.warn("[getAllComments] No comments found for postId: {}", postId);
             throw new EntityNotFoundException("No comments found for postId: " + postId);
         }
-
 
 
         List<CommentResponseDTO> comments = commentPage.getContent().stream()

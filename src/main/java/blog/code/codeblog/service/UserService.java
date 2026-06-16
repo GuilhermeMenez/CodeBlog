@@ -2,15 +2,12 @@ package blog.code.codeblog.service;
 
 import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
-import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
-import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
-import blog.code.codeblog.dto.user.UserFollowDTO;
-import blog.code.codeblog.dto.user.UserResponseDTO;
+import blog.code.codeblog.dto.user.*;
+import blog.code.codeblog.enums.FlowImageFlag;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.model.UserFollow;
 import blog.code.codeblog.repository.UserFollowRepository;
 import blog.code.codeblog.repository.UserRepository;
-import blog.code.codeblog.service.interfaces.UserServiceInterface;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -23,7 +20,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 
+
+import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -34,7 +34,7 @@ import static blog.code.codeblog.config.RedisConfig.*;
 
 @Slf4j
 @Service
-public class UserService implements UserServiceInterface {
+public class UserService {
     @Autowired
     UserRepository userRepository;
 
@@ -43,6 +43,9 @@ public class UserService implements UserServiceInterface {
 
     @Autowired
     PasswordEncoder bCryptPasswordEncoder;
+
+    @Autowired
+    private CloudinaryService cloudinaryService;
 
     @Lazy
     @Autowired
@@ -74,10 +77,26 @@ public class UserService implements UserServiceInterface {
         return userRepository.findByLogin(login);
     }
 
-    public void saveUser(User user){
-        log.info("[saveUser] Saving user with login: {}", user.getLogin());
-        userRepository.save(user);
-        log.info("[saveUser] User saved successfully. login: {}", user.getLogin());
+    public void saveUser(CreateUserDTO user){
+        log.info("[saveUser] Saving user with login: {}", user.email());
+
+        String encryptedPassword = bCryptPasswordEncoder.encode(user.password());
+        User newUser = new User(user.name(), user.email(), encryptedPassword);
+        userRepository.save(newUser);
+
+        log.info("[saveUser] User saved successfully. login: {}", user.email());
+
+
+        if (user.profileImage() != null && !user.profileImage().isEmpty()) {
+            log.info("[register] Processing profile image for user: {}", newUser.getId());
+            try {
+                cloudinaryService.uploadFile(user.profileImage(), FlowImageFlag.PROFILE, newUser.getId().toString(), null);
+                saveUploadProfilePic(newUser.getId(), newUser.getUrlProfilePic(), newUser.getProfilePicId());
+                log.info("[register] Profile image uploaded and saved successfully for user: {}", newUser.getId());
+            } catch (IOException e) {
+                log.error("[register] Failed to upload profile image for user: {}. Error: {}", newUser.getId(), e.getMessage());
+            }
+        }
     }
 
     @Transactional
@@ -108,8 +127,6 @@ public class UserService implements UserServiceInterface {
             @CacheEvict(value = FOLLOWERS_CACHE, allEntries = true),
             @CacheEvict(value = FOLLOWING_CACHE, allEntries = true)
     })
-
-
     public void deleteUser(UUID userId) {
         log.info("[deleteUser] Attempting to delete user with id: {}", userId);
         if (!userRepository.existsById(userId)) {
@@ -120,20 +137,23 @@ public class UserService implements UserServiceInterface {
         log.info("[deleteUser] User deleted successfully. id: {}", userId);
     }
 
+
+    //todo verificar se o usuario pode realizar a acao
     @CacheEvict(value = USER_CACHE, key = "#userId")
-    public ImageUploadResponseDTO saveUploadProfilePic(UUID userId, String profilePicUrl, String profilePicId) throws EntityNotFoundException {
+    public ImageUploadResponseDTO saveUploadProfilePic(UUID userId, String profilePicUrl, String profilePicId) throws AccessDeniedException {
         log.info("[updateProfilePic] Attempting to update profile pic for user with id: {}", userId);
-        User existingUser = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.warn("[updateProfilePic] User not found. id: {}", userId);
-                    return new EntityNotFoundException("User not found");
-                });
+
+        User existingUser = getAuthorizedUser(userId);
+
+
         existingUser.setUrlProfilePic(profilePicUrl);
         existingUser.setProfilePicId(profilePicId);
         userRepository.save(existingUser);
+
         log.info("[updateProfilePic] Profile pic updated successfully. id for user: {}", existingUser.getLogin());
+
         return ImageUploadResponseDTO.builder()
-                .message("Profile pic updated successfully")
+                .message("Profile pic uploaded successfully")
                 .imageUrl(profilePicUrl)
                 .publicId(profilePicId)
                 .build();
@@ -215,7 +235,6 @@ public class UserService implements UserServiceInterface {
     }
 
 
-
     @Cacheable(
             value = FOLLOWERS_CACHE,
             key = "#userId + '_' + #pageable.pageNumber + '_' + #pageable.pageSize",
@@ -295,5 +314,24 @@ public class UserService implements UserServiceInterface {
         var userid = tokenService.getSubjectIdFromToken(token);
         log.info("[getUserInformation] Getting user information for user id: {}", userid);
         return self.findUserById(UUID.fromString(userid));
+    }
+
+
+
+    private User getAuthorizedUser(UUID userId) {
+        UUID userIdFromContext = tokenService.getUserIdFromContext();
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.warn("[getAuthorizedUser] User not found. userId: {}", userId);
+                    return new EntityNotFoundException("User not found");
+                });
+
+        if (!user.getId().equals(userIdFromContext)) {
+            log.warn("[getAuthorizedUser] User not authorized for this action. userIdFromContext: {}, targetUserId: {}", userIdFromContext, userId);
+            throw new AccessDeniedException("User not authorized for this action");
+        }
+
+        return user;
     }
 }

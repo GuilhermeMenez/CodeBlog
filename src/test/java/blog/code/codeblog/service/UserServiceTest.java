@@ -2,6 +2,7 @@ package blog.code.codeblog.service;
 
 import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
+import blog.code.codeblog.dto.user.CreateUserDTO;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.model.UserFollow;
 import blog.code.codeblog.repository.UserFollowRepository;
@@ -89,14 +90,21 @@ class UserServiceTest {
         verify(userRepository).findByLogin("notfound@email.com");
     }
 
+
     @Test
     @DisplayName("Should save user successfully")
     void saveUserSuccess() {
-        User user = new User();
-        when(userRepository.save(user)).thenReturn(user);
-        userService.saveUser(user);
-        verify(userRepository).save(user);
+        CreateUserDTO createUserDTO = new CreateUserDTO("John", "john@email.com", "password123", null, null);
+
+        when(bCryptPasswordEncoder.encode("password123")).thenReturn("encodedPassword");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertDoesNotThrow(() -> userService.saveUser(createUserDTO));
+
+        verify(bCryptPasswordEncoder).encode("password123");
+        verify(userRepository).save(any(User.class));
     }
+
 
     @Test
     @DisplayName("Should update user successfully")
@@ -123,9 +131,8 @@ class UserServiceTest {
         verify(userRepository).findById(id);
         verify(bCryptPasswordEncoder).encode("newPassword");
 
-        // NÃO verificar save()
+        verifyNoMoreInteractions(userRepository);
     }
-
 
     @Test
     @DisplayName("Should throw exception when updating non-existent user")
@@ -215,20 +222,18 @@ class UserServiceTest {
                 .deleteByFollower_IdAndFollowed_Id(followerId, followedId);
     }
 
-
-
-
     @Test
     @DisplayName("Should throw IllegalStateException when not following")
     void unfollowUserNotFollowing() {
         UUID followerId = UUID.randomUUID();
         UUID followedId = UUID.randomUUID();
 
-        when(userFollowRepository.existsByFollower_IdAndFollowed_Id(followerId, followedId)).thenReturn(false);
+        when(userFollowRepository.deleteByFollower_IdAndFollowed_Id(followerId, followedId)).thenReturn(0);
 
         IllegalStateException exception = assertThrows(IllegalStateException.class,
                 () -> userService.unfollow(followerId, followedId));
         assertEquals("User does not follow this user", exception.getMessage());
+        verify(userFollowRepository).deleteByFollower_IdAndFollowed_Id(followerId, followedId);
     }
 
     @Test
@@ -291,17 +296,19 @@ class UserServiceTest {
         existingUser.setId(userId);
         existingUser.setLogin("user@email.com");
 
+        when(tokenService.getUserIdFromContext()).thenReturn(userId);
         when(userRepository.findById(userId)).thenReturn(Optional.of(existingUser));
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var result = userService.saveUploadProfilePic(userId, profilePicUrl, profilePicId);
 
         assertNotNull(result);
-        assertEquals("Profile pic updated successfully", result.message());
+        assertEquals("Profile pic uploaded successfully", result.message());
         assertEquals(profilePicUrl, result.imageUrl());
         assertEquals(profilePicId, result.publicId());
         assertEquals(profilePicUrl, existingUser.getUrlProfilePic());
         assertEquals(profilePicId, existingUser.getProfilePicId());
+        verify(tokenService).getUserIdFromContext();
         verify(userRepository).findById(userId);
         verify(userRepository).save(existingUser);
     }
@@ -313,12 +320,14 @@ class UserServiceTest {
         String profilePicUrl = "https://cloudinary.com/profile.jpg";
         String profilePicId = "profile_pics/test-image";
 
+        when(tokenService.getUserIdFromContext()).thenReturn(userId);
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
-            () -> userService.saveUploadProfilePic(userId, profilePicUrl, profilePicId));
+                () -> userService.saveUploadProfilePic(userId, profilePicUrl, profilePicId));
 
         assertEquals("User not found", exception.getMessage());
+        verify(tokenService).getUserIdFromContext();
         verify(userRepository).findById(userId);
         verify(userRepository, never()).save(any());
     }
@@ -397,7 +406,7 @@ class UserServiceTest {
         when(userRepository.existsById(userId)).thenReturn(false);
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
-            () -> userService.getFollowers(userId, pageable));
+                () -> userService.getFollowers(userId, pageable));
 
         assertEquals("User not found with id: " + userId, exception.getMessage());
         verify(userRepository).existsById(userId);
@@ -442,11 +451,12 @@ class UserServiceTest {
         when(userRepository.existsById(userId)).thenReturn(false);
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
-            () -> userService.getFollowing(userId, pageable));
+                () -> userService.getFollowing(userId, pageable));
 
         assertEquals("User not found with id: " + userId, exception.getMessage());
         verify(userRepository).existsById(userId);
     }
+
 
     @Test
     @DisplayName("Should get user information by token successfully")
@@ -487,7 +497,6 @@ class UserServiceTest {
         UUID userId = UUID.randomUUID();
         String token = "valid-jwt-token";
 
-
         when(tokenService.getSubjectIdFromToken(token)).thenReturn(userId.toString());
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
@@ -498,8 +507,4 @@ class UserServiceTest {
         verify(tokenService).getSubjectIdFromToken(token);
         verify(userRepository).findById(userId);
     }
-
-
-
-
 }

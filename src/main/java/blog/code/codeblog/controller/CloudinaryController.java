@@ -15,7 +15,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/image")
-public class CloudnaryController {
+public class CloudinaryController {
 
     @Autowired
     CloudinaryService cloudinaryService;

@@ -26,14 +26,14 @@ public class CommentController {
     }
     @PutMapping("update/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public CommentResponseDTO updateComment(@PathVariable("id") UUID id, @RequestBody CommentDTO comment) {
+    public CommentResponseDTO updateComment(@PathVariable UUID id, @RequestBody CommentDTO comment) {
         log.info("Update comment request received: {}", comment);
         return commentServiceInterface.updateComment(comment, id);
     }
 
     @DeleteMapping("/delete/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteComment(@PathVariable("id") UUID  id) {
+    public void deleteComment(@PathVariable UUID  id) {
         log.info("Delete comment request received: {}", id);
         commentServiceInterface.deleteComment(id);
     }

@@ -12,9 +12,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Map;
 
-@RestController
 @Slf4j
-public class CloudnaryController {
+@RestController
+@RequestMapping("/image")
+public class CloudinaryController {
 
     @Autowired
     CloudinaryService cloudinaryService;

@@ -22,13 +22,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-class CloudnaryControllerTest {
+class CloudinaryControllerTest {
 
     @Mock
     private CloudinaryService cloudinaryService;
 
     @InjectMocks
-    private CloudnaryController cloudnaryController;
+    private CloudinaryController cloudinaryController;
 
     @BeforeEach
     void setUp() {
@@ -59,7 +59,7 @@ class CloudnaryControllerTest {
                 .thenReturn(expectedResponse);
 
         // Act
-        ImageUploadResponseDTO result = cloudnaryController.uploadImage(file, FlowImageFlag.PROFILE, userId.toString(), null);
+        ImageUploadResponseDTO result = cloudinaryController.uploadImage(file, FlowImageFlag.PROFILE, userId.toString(), null);
 
         // Assert
         assertNotNull(result);
@@ -84,7 +84,7 @@ class CloudnaryControllerTest {
                 .thenReturn(expectedResponse);
 
         // Act
-        ImageUploadResponseDTO result = cloudnaryController.uploadImage(file, FlowImageFlag.POST, null, postId.toString());
+        ImageUploadResponseDTO result = cloudinaryController.uploadImage(file, FlowImageFlag.POST, null, postId.toString());
 
         // Assert
         assertNotNull(result);
@@ -105,7 +105,7 @@ class CloudnaryControllerTest {
 
         // Act & Assert
         assertThrows(IOException.class, () ->
-            cloudnaryController.uploadImage(file, FlowImageFlag.PROFILE, UUID.randomUUID().toString(), null)
+            cloudinaryController.uploadImage(file, FlowImageFlag.PROFILE, UUID.randomUUID().toString(), null)
         );
     }
 
@@ -120,7 +120,7 @@ class CloudnaryControllerTest {
         when(cloudinaryService.deleteFile(publicId)).thenReturn(expectedResponse);
 
         // Act
-        Map<String, Object> result = cloudnaryController.deleteImage(publicId);
+        Map<String, Object> result = cloudinaryController.deleteImage(publicId);
 
         // Assert
         assertNotNull(result);
@@ -139,7 +139,7 @@ class CloudnaryControllerTest {
 
         // Act & Assert
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class, () ->
-            cloudnaryController.deleteImage(publicId)
+            cloudinaryController.deleteImage(publicId)
         );
         assertEquals("Image with publicId " + publicId + " not found", exception.getMessage());
         verify(cloudinaryService).deleteFile(publicId);
@@ -156,7 +156,7 @@ class CloudnaryControllerTest {
 
         // Act & Assert
         assertThrows(IOException.class, () ->
-            cloudnaryController.deleteImage(publicId)
+            cloudinaryController.deleteImage(publicId)
         );
         verify(cloudinaryService).deleteFile(publicId);
     }

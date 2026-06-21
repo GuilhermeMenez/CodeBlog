@@ -9,7 +9,7 @@ import blog.code.codeblog.dto.post.PutPostDTO;
 import java.util.List;
 import java.util.UUID;
 
-public interface PostService {
+public interface PostServiceInterface {
     List<PostResponseDTO> findAll();
     PostResponseDTO findById(UUID id);
     String save(CreatePostRequestDTO post);

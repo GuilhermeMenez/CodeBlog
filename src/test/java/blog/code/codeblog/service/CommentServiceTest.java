@@ -23,7 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class CommentServiceImplTest {
+class CommentServiceTest {
 
     @Mock
     private CommentRepository commentRepository;
@@ -32,10 +32,10 @@ class CommentServiceImplTest {
     private UserService userService;
 
     @Mock
-    private PostServiceImpl postServiceImpl;
+    private PostService postService;
 
     @InjectMocks
-    private CommentServiceImpl commentService;
+    private CommentService commentService;
 
     @Test
     @DisplayName("Should save comment successfully and return response DTO")
@@ -48,7 +48,7 @@ class CommentServiceImplTest {
         Post mockPost = new Post();
         mockPost.setId(postId);
         when(userService.getReference(any(UUID.class))).thenReturn(mockUser);
-        when(postServiceImpl.getReference(any(UUID.class))).thenReturn(mockPost);
+        when(postService.getReference(any(UUID.class))).thenReturn(mockPost);
         UUID generatedId = UUID.randomUUID();
         when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> {
             Comment comment = invocation.getArgument(0);
@@ -63,7 +63,7 @@ class CommentServiceImplTest {
         assertEquals("Test Author", result.author());
         assertNotNull(result.createdAt());
         verify(commentRepository, times(1)).save(any(Comment.class));
-        verify(postServiceImpl, times(1)).getReference(any(UUID.class));
+        verify(postService, times(1)).getReference(any(UUID.class));
         verify(userService, times(1)).getReference(any(UUID.class));
     }
 
@@ -169,9 +169,9 @@ class CommentServiceImplTest {
         User mockUser = new User();
         mockUser.setName("Test Author");
         when(userService.getReference(any(UUID.class))).thenReturn(mockUser);
-        when(postServiceImpl.getReference(any(UUID.class))).thenThrow(new EntityNotFoundException("Post not found"));
+        when(postService.getReference(any(UUID.class))).thenThrow(new EntityNotFoundException("Post not found"));
         assertThrows(EntityNotFoundException.class, () -> commentService.saveComment(commentDTO));
-        verify(postServiceImpl, times(1)).getReference(any(UUID.class));
+        verify(postService, times(1)).getReference(any(UUID.class));
     }
 
     @Test
@@ -186,7 +186,7 @@ class CommentServiceImplTest {
         Post mockPost = new Post();
         mockPost.setId(postId);
         when(userService.getReference(any(UUID.class))).thenReturn(mockUser);
-        when(postServiceImpl.getReference(any(UUID.class))).thenReturn(mockPost);
+        when(postService.getReference(any(UUID.class))).thenReturn(mockPost);
         when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> {
             Comment comment = invocation.getArgument(0);
             comment.setId(UUID.randomUUID());

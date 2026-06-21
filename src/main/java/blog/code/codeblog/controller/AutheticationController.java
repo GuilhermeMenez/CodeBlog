@@ -4,7 +4,7 @@ import blog.code.codeblog.dto.authentication.AuthenticationDTO;
 import blog.code.codeblog.dto.authentication.LoginResponseDTO;
 import blog.code.codeblog.dto.authentication.RegisterRespondeDTO;
 import blog.code.codeblog.dto.user.CreateUserDTO;
-import blog.code.codeblog.service.AuthorizationService;
+import blog.code.codeblog.service.AuthenticationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class AutheticationController {
 
     @Autowired
-    AuthorizationService authorizationService;
-
+    AuthenticationService authorizationService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)

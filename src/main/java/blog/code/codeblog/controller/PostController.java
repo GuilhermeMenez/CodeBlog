@@ -1,17 +1,20 @@
 package blog.code.codeblog.controller;
 
 import blog.code.codeblog.dto.PageResponseDTO;
+import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
 import blog.code.codeblog.dto.comment.CommentResponseDTO;
 import blog.code.codeblog.dto.post.CreatePostRequestDTO;
 import blog.code.codeblog.dto.post.PostResponseDTO;
 import blog.code.codeblog.dto.post.PutPostDTO;
-import blog.code.codeblog.service.interfaces.PostService;
+import blog.code.codeblog.service.PostService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -87,5 +90,11 @@ public class PostController {
         log.info("Get all comments for post request received for post {} (page: {}, size: {})", id, page, size);
         return postService.getPostComments(id, page, size);
 
+    }
+
+    @PostMapping("upload")
+    public ImageUploadResponseDTO uploadImage(@RequestParam("file") MultipartFile file, @RequestParam("postId") UUID postId) throws IOException {
+        log.info("Upload image request received: {}", file.getOriginalFilename());
+        return postService.savePostImage(postId,file);
     }
 }

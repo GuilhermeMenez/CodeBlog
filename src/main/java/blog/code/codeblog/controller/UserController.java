@@ -19,26 +19,27 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
+@RequestMapping("/user")
 public class UserController {
 
     @Autowired
     UserService userService;
 
-    @DeleteMapping("/deleteUser/{id}")
+    @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable("id") UUID userId) {
         log.info("Delete user request received for user {}", userId);
         userService.deleteUser(userId);
     }
 
-    @GetMapping("/user/{id}")
+    @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
     public UserResponseDTO findUserById(@PathVariable UUID id) {
         log.info("Get user by id request received for user {}", id);
         return userService.findUserById(id);
     }
 
-    @PutMapping("/user/edit/{id}")
+    @PutMapping("//edit/{id}")
     @ResponseStatus(HttpStatus.OK)
     public UpdateUserResponseDTO updateUser(@PathVariable("id") UUID id, @RequestBody @Valid UpdateUserRequestDTO user) {
         log.info("Update user request received for user {}", id);
@@ -59,7 +60,7 @@ public class UserController {
         userService.unfollow(followUnfollowRequestDTO.followerId(), followUnfollowRequestDTO.followedId());
     }
 
-    @GetMapping("/user/{id}/followers")
+    @GetMapping("/{id}/followers")
     @ResponseStatus(HttpStatus.OK)
     public PageResponseDTO<UserFollowDTO> getFollowers(
             @PathVariable("id") UUID userId,
@@ -70,7 +71,7 @@ public class UserController {
         return userService.getFollowers(userId, pageable);
     }
 
-    @GetMapping("/user/{id}/following")
+    @GetMapping("/{id}/following")
     @ResponseStatus(HttpStatus.OK)
     public PageResponseDTO<UserFollowDTO> getFollowing(
             @PathVariable("id") UUID userId,
@@ -81,7 +82,7 @@ public class UserController {
         return userService.getFollowing(userId, pageable);
     }
 
-    @GetMapping("/users/me")
+    @GetMapping("/me")
     @ResponseStatus(HttpStatus.OK)
     public UserResponseDTO getMe(@RequestHeader("Authorization") String token) {
         log.info("Get me request received");

@@ -5,7 +5,7 @@ import blog.code.codeblog.dto.comment.CommentResponseDTO;
 
 import java.util.UUID;
 
-public interface CommentService {
+public interface CommentServiceInterface {
     CommentResponseDTO saveComment(CommentDTO comment);
     void deleteComment(UUID id);
     CommentResponseDTO updateComment(CommentDTO comment, UUID commentId);

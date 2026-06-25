@@ -55,13 +55,6 @@ public class PostService implements PostServiceInterface {
     CommentRepository commentRepository;
     @Autowired
     UserFollowRepository userFollowRepository;
-    @Value("${feed.recent-posts-days}")
-    private int recentPostsDays;
-    @Getter
-    @Value("${feed.seed-interval-ms}")
-    private long feedSeedIntervalMs;
-    @Value("${feed.max-posts-fetch-limit}")
-    private int maxPostsFetchLimit;
 
     @Override
     public List<PostResponseDTO> findAll() {
@@ -70,232 +63,6 @@ public class PostService implements PostServiceInterface {
                 .map(this::convertToPostResponseDTO)
                 .collect(Collectors.toList());
     }
-
-    @Override
-    @Cacheable(value = POST_CACHE, key = "#id", unless = "#result == null")
-    public PostResponseDTO findById(UUID id) {
-        log.info("[findById] Attempting to find post with id: {}", id);
-        return postRepository.findById(id).map(this::convertToPostResponseDTO)
-                .orElseThrow(() -> {
-                    log.warn("[findById] Post not found. id: {}", id);
-                    return new RuntimeException("Post not found");
-                });
-    }
-
-
-    @Override
-    @Caching(evict = {
-            @CacheEvict(value = USER_POSTS_CACHE, allEntries = true),
-            @CacheEvict(value = FEED_CACHE, allEntries = true)
-    })
-    public String save(CreatePostRequestDTO post) {
-        //todo pegar o user id do token do contexto
-        log.info("[save] Attempting to save new post for authorId: {}", post.authorId());
-
-        User user = userRepository.findById(post.authorId())
-                .orElseThrow(() -> {
-                    log.warn("[save] Author not found. authorId: {}", post.authorId());
-                    return new EntityNotFoundException("Author not found");
-                });
-
-        Post newPost = Post.builder()
-                .title(post.title())
-                .content(post.content())
-                .date(LocalDate.now())
-                .user(user)
-                .author(user.getName())
-                .build();
-
-        Post savedPost = postRepository.save(newPost);
-        try {
-            processImages(savedPost, post.images());
-        } catch (IOException e) {
-            log.error("[save] Failed to process images for post: {}. Error: {}", savedPost.getId(), e.getMessage());
-        }
-
-        log.info("[save] Post saved successfully. postId: {}", savedPost.getId());
-        return savedPost.getId().toString();
-    }
-
-    private void processImages(Post post, List<MultipartFile> images) throws IOException {
-        if (images != null && !images.isEmpty()) {
-            log.info("[save] Processing {} images for post: {}", images.size(), post.getId());
-            for (MultipartFile image : images) {
-                if (image != null) {
-                    savePostImage(post.getId(), image);
-                }
-            }
-        } else {
-            log.info("[save] No images found for post: {}", post.getId());
-        }
-    }
-
-
-    private Post getAuthorizedPost(UUID postId) {
-        UUID userIdFromContext = tokenService.getUserIdFromContext();
-
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> {
-                    log.warn("[getAuthorizedPost] Post not found. postId: {}", postId);
-                    return new EntityNotFoundException("Post not found");
-                });
-
-        if (!post.getUser().getId().equals(userIdFromContext)) {
-            log.warn("[getAuthorizedPost] User not authorized for this action. userId: {}, postId: {}", userIdFromContext, postId);
-            throw new AccessDeniedException("User not authorized for this action");
-        }
-
-        return post;
-    }
-
-    @Caching(evict = {
-            @CacheEvict(value = POST_CACHE, key = "#postId"),
-            @CacheEvict(value = USER_POSTS_CACHE, allEntries = true)
-    })
-    public ImageUploadResponseDTO savePostImage(UUID postId, MultipartFile image) throws IOException {
-        Post post = getAuthorizedPost(postId);
-        log.info("[uploadImage] Uploading image for: {}", postId);
-
-        var uploadResponse = cloudinaryService.uploadFile(image, FlowImageFlag.POST, post.getUser().getId().toString(), postId.toString());
-
-        if (post.getImages() == null) {
-            post.setImages(new HashMap<>());
-        }
-
-        post.getImages().put(uploadResponse.publicId(), uploadResponse.imageUrl());
-        postRepository.save(post);
-        log.info("[saveImage] Image uploaded for postId: {}", postId);
-
-        return uploadResponse;
-    }
-
-
-    @Override
-    @Caching(evict = {
-            @CacheEvict(value = POST_CACHE, key = "#postId"),
-            @CacheEvict(value = USER_POSTS_CACHE, allEntries = true),
-            @CacheEvict(value = FEED_CACHE, allEntries = true)
-    })
-    public void deletePost(UUID postId, String token) {
-        log.info("[deletePost] Attempting to delete post. postId: {}", postId);
-        UUID userIdFromToken = fromString(tokenService.getSubjectIdFromToken(token));
-        Post post = postRepository.findById(postId).orElseThrow(() -> {
-            log.warn("[deletePost] Post not found. postId: {}", postId);
-            return new RuntimeException("Post not found");
-        });
-        if (!post.getUser().getId().equals(userIdFromToken)) {
-            log.warn("[deletePost] User not authorized to delete post. userId: {}, postId: {}", userIdFromToken, postId);
-            throw new RuntimeException("User not authorized to delete this post");
-        }
-        postRepository.deleteById(postId);
-        log.info("[deletePost] Post deleted successfully. postId: {}", postId);
-    }
-
-
-    @Override
-    @Cacheable(
-            value = FEED_CACHE,
-            key = "#userId + '_' + (T(System).currentTimeMillis() / @postService.feedSeedIntervalMs) + '_' + #page + '_' + #size",
-            unless = "#result.empty == true"
-    )
-    public PageResponseDTO<PostResponseDTO> getBalancedFeed(UUID userId, int page, int size) {
-        log.info("[getBalancedFeed] Getting balanced feed for userId: {} (page: {}, size: {})", userId, page, size);
-
-        validateUserExists(userId);
-
-        LocalDate since = LocalDate.now().minusDays(recentPostsDays);
-
-        // Busca os IDs dos usuários seguidos uma única vez
-        Set<UUID> followedUserIds = userFollowRepository.findFollowedIdsByUserId(userId);
-
-        long totalElements = calculateTotalElements(userId, since, followedUserIds);
-
-        long seed = generateDeterministicSeed(userId, totalElements);
-
-        List<Post> allPosts = fetchFeedPosts(userId, since, page, size, followedUserIds);
-
-        List<Post> shuffledPosts = shuffleWithSeed(allPosts, seed);
-
-        List<PostResponseDTO> content = paginateAndConvert(shuffledPosts, page, size);
-
-        return buildFeedResponse(content, page, size, totalElements);
-    }
-
-    private void validateUserExists(UUID userId) {
-        if (!userRepository.existsById(userId)) {
-            log.warn("[getBalancedFeed] User not found. userId: {}", userId);
-            throw new EntityNotFoundException("User not found");
-        }
-    }
-
-    private long generateDeterministicSeed(UUID userId, long totalPosts) {
-        long intervalMs = Math.max(feedSeedIntervalMs, 1L);
-        long currentInterval = System.currentTimeMillis() / intervalMs;
-        return userId.hashCode() + currentInterval + totalPosts;
-    }
-
-    private List<Post> fetchFeedPosts(UUID userId, LocalDate since, int page, int size, Set<UUID> followedUserIds) {
-        // Limita a quantidade de posts buscados para evitar sobrecarga em páginas distantes
-        int totalPostsNeeded = Math.min((page + 1) * size, maxPostsFetchLimit);
-        Pageable pageable = PageRequest.of(0, totalPostsNeeded);
-
-        if (followedUserIds.isEmpty()) {
-            log.info("[getBalancedFeed] User follows no one, returning recent posts");
-            return postRepository.findAllRecentPosts(since, pageable);
-        }
-
-        return postRepository.findFeedPosts(userId, since, pageable);
-    }
-
-    private List<Post> shuffleWithSeed(List<Post> posts, long seed) {
-        List<Post> shuffled = new ArrayList<>(posts);
-        Collections.shuffle(shuffled, new Random(seed));
-        return shuffled;
-    }
-
-    private List<PostResponseDTO> paginateAndConvert(List<Post> posts, int page, int size) {
-        int fromIndex = page * size;
-        int toIndex = Math.min(fromIndex + size, posts.size());
-
-        if (fromIndex >= posts.size()) {
-            return Collections.emptyList();
-        }
-
-        return posts.subList(fromIndex, toIndex).stream()
-                .map(this::convertToPostResponseDTO)
-                .collect(Collectors.toList());
-    }
-
-
-    private long calculateTotalElements(UUID userId, LocalDate since, Set<UUID> followedUserIds) {
-        if (followedUserIds.isEmpty()) {
-            return postRepository.countAllRecentPosts(since);
-        }
-
-        return postRepository.countFeedPosts(userId, since);
-    }
-
-
-    private PageResponseDTO<PostResponseDTO> buildFeedResponse(
-            List<PostResponseDTO> content,
-            int page,
-            int size,
-            long totalElements) {
-
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-
-        return PageResponseDTO.<PostResponseDTO>builder()
-                .content(content)
-                .currentPage(page)
-                .totalPages(totalPages)
-                .totalElements(totalElements)
-                .size(size)
-                .first(page == 0)
-                .last(page >= totalPages - 1)
-                .empty(content.isEmpty())
-                .build();
-    }
-
 
     @Override
     @Cacheable(
@@ -330,6 +97,67 @@ public class PostService implements PostServiceInterface {
     }
 
     @Override
+    @Cacheable(value = POST_CACHE, key = "#id", unless = "#result == null")
+    public PostResponseDTO findById(UUID id) {
+        log.info("[findById] Attempting to find post with id: {}", id);
+        return postRepository.findById(id).map(this::convertToPostResponseDTO)
+                .orElseThrow(() -> {
+                    log.warn("[findById] Post not found. id: {}", id);
+                    return new RuntimeException("Post not found");
+                });
+    }
+
+    @Override
+    @Caching(evict = {
+            @CacheEvict(value = USER_POSTS_CACHE, allEntries = true),
+            @CacheEvict(value = FEED_CACHE, allEntries = true)
+    })
+    public Post save(CreatePostRequestDTO post) {
+        //todo pegar o user id do token do contexto
+        log.info("[save] Attempting to save new post for authorId: {}", post.authorId());
+
+        User user = userRepository.findById(post.authorId())
+                .orElseThrow(() -> {
+                    log.warn("[save] Author not found. authorId: {}", post.authorId());
+                    return new EntityNotFoundException("Author not found");
+                });
+
+        Post newPost = Post.builder()
+                .title(post.title())
+                .content(post.content())
+                .date(LocalDate.now())
+                .user(user)
+                .author(user.getName())
+                .build();
+
+        Post savedPost = postRepository.save(newPost);
+
+        log.info("[save] Post saved successfully. postId: {}", savedPost.getId());
+        return savedPost;
+    }
+
+    @Override
+    @Caching(evict = {
+            @CacheEvict(value = POST_CACHE, key = "#postId"),
+            @CacheEvict(value = USER_POSTS_CACHE, allEntries = true),
+            @CacheEvict(value = FEED_CACHE, allEntries = true)
+    })
+    public void deletePost(UUID postId, String token) {
+        log.info("[deletePost] Attempting to delete post. postId: {}", postId);
+        UUID userIdFromToken = fromString(tokenService.getSubjectIdFromToken(token));
+        Post post = postRepository.findById(postId).orElseThrow(() -> {
+            log.warn("[deletePost] Post not found. postId: {}", postId);
+            return new RuntimeException("Post not found");
+        });
+        if (!post.getUser().getId().equals(userIdFromToken)) {
+            log.warn("[deletePost] User not authorized to delete post. userId: {}, postId: {}", userIdFromToken, postId);
+            throw new RuntimeException("User not authorized to delete this post");
+        }
+        postRepository.deleteById(postId);
+        log.info("[deletePost] Post deleted successfully. postId: {}", postId);
+    }
+
+    @Override
     @Caching(evict = {
             @CacheEvict(value = POST_CACHE, key = "#postId"),
             @CacheEvict(value = USER_POSTS_CACHE, allEntries = true)
@@ -352,6 +180,62 @@ public class PostService implements PostServiceInterface {
         log.info("[updatePost] Post updated successfully. postId: {}", postId);
         return convertToPostResponseDTO(existingPost);
     }
+
+    @Caching(evict = {
+            @CacheEvict(value = POST_CACHE, key = "#postId"),
+            @CacheEvict(value = USER_POSTS_CACHE, allEntries = true)
+    })
+    public ImageUploadResponseDTO savePostImage(UUID postId, MultipartFile image) throws IOException {
+        Post post = getAuthorizedPost(postId);
+        log.info("[uploadImage] Uploading image for: {}", postId);
+
+        var uploadResponse = cloudinaryService.uploadFile(image, FlowImageFlag.POST, post.getUser().getId().toString(), postId.toString());
+
+        if (post.getImages() == null) {
+            post.setImages(new HashMap<>());
+        }
+
+        post.getImages().put(uploadResponse.publicId(), uploadResponse.imageUrl());
+        postRepository.save(post);
+        log.info("[saveImage] Image uploaded for postId: {}", postId);
+
+        return uploadResponse;
+    }
+
+
+    public void processImages(Post post, List<MultipartFile> images) throws IOException {
+        if (images != null && !images.isEmpty()) {
+            log.info("[save] Processing {} images for post: {}", images.size(), post.getId());
+            for (MultipartFile image : images) {
+                if (image != null) {
+                    savePostImage(post.getId(), image);
+                }
+            }
+        } else {
+            log.info("[save] No images found for post: {}", post.getId());
+        }
+    }
+
+
+
+    private Post getAuthorizedPost(UUID postId) {
+        UUID userIdFromContext = tokenService.getUserIdFromContext();
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> {
+                    log.warn("[getAuthorizedPost] Post not found. postId: {}", postId);
+                    return new EntityNotFoundException("Post not found");
+                });
+
+        if (!post.getUser().getId().equals(userIdFromContext)) {
+            log.warn("[getAuthorizedPost] User not authorized for this action. userId: {}, postId: {}", userIdFromContext, postId);
+            throw new AccessDeniedException("User not authorized for this action");
+        }
+
+        return post;
+    }
+
+
 
 
     public Post getReference(UUID id) {
@@ -410,7 +294,7 @@ public class PostService implements PostServiceInterface {
         return postRepository.findById(id);
     }
 
-    private PostResponseDTO convertToPostResponseDTO(Post post) {
+    protected PostResponseDTO convertToPostResponseDTO(Post post) {
         Map<String, String> imagesCopy = post.getImages() != null
                 ? new HashMap<>(post.getImages())
                 : null;

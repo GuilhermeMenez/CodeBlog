@@ -1,11 +1,14 @@
 package blog.code.codeblog.controller;
 
 import blog.code.codeblog.dto.PageResponseDTO;
+import blog.code.codeblog.dto.follow.FollowUnfollowRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
 import blog.code.codeblog.dto.user.UserFollowDTO;
 import blog.code.codeblog.dto.user.UserResponseDTO;
-import blog.code.codeblog.service.UserService;
+import blog.code.codeblog.facade.UserFacade;
+import blog.code.codeblog.model.User;
+import blog.code.codeblog.service.provider.UserProvider;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,8 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,17 +28,23 @@ import static org.mockito.Mockito.*;
 class UserControllerTest {
 
     @Mock
-    private UserService userService;
+    private UserFacade userFacade;
+
+    @Mock
+    private UserProvider userProvider;
 
     @InjectMocks
     private UserController userController;
 
     private UUID testUserId;
+    private User currentUser;
     private UserResponseDTO testUserResponseDTO;
 
     @BeforeEach
     void setUp() {
         testUserId = UUID.randomUUID();
+        currentUser = new User();
+        currentUser.setId(testUserId);
         testUserResponseDTO = UserResponseDTO.builder()
                 .id(testUserId)
                 .name("testuser")
@@ -49,18 +56,19 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("Should delete user successfully")
+    @DisplayName("Should delete current user successfully")
     void deleteUserShouldSucceed() {
-        doNothing().when(userService).deleteUser(testUserId);
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        doNothing().when(userFacade).deleteUser(currentUser);
 
-        assertDoesNotThrow(() -> userController.deleteUser(testUserId));
-        verify(userService, times(1)).deleteUser(testUserId);
+        assertDoesNotThrow(() -> userController.deleteUser());
+        verify(userFacade, times(1)).deleteUser(currentUser);
     }
 
     @Test
     @DisplayName("Should return user when user exists by id")
     void findUserByIdShouldReturnUserWhenUserExists() {
-        when(userService.findUserById(testUserId)).thenReturn(testUserResponseDTO);
+        when(userFacade.findUserById(testUserId)).thenReturn(testUserResponseDTO);
 
         UserResponseDTO result = userController.findUserById(testUserId);
 
@@ -69,36 +77,57 @@ class UserControllerTest {
         assertEquals("testuser@email.com", result.login());
         assertEquals(10L, result.followersCount());
         assertEquals(5L, result.followingCount());
-        verify(userService, times(1)).findUserById(testUserId);
+        verify(userFacade, times(1)).findUserById(testUserId);
     }
 
     @Test
     @DisplayName("Should throw EntityNotFoundException when user does not exist by id")
     void findUserByIdShouldThrowWhenUserDoesNotExist() {
         UUID id = UUID.randomUUID();
-        when(userService.findUserById(id))
+        when(userFacade.findUserById(id))
                 .thenThrow(new EntityNotFoundException("User not found with id: " + id));
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
                 () -> userController.findUserById(id));
 
         assertEquals("User not found with id: " + id, exception.getMessage());
-        verify(userService, times(1)).findUserById(id);
+        verify(userFacade, times(1)).findUserById(id);
     }
 
     @Test
-    @DisplayName("Should update user and return updated user")
+    @DisplayName("Should update current user and return updated user")
     void updateUserShouldReturnUpdatedUserWhenUserExists() {
         UpdateUserRequestDTO updateDTO = new UpdateUserRequestDTO("updateduser", "test@example.com", "newpassword", null);
         UpdateUserResponseDTO updatedResponse = new UpdateUserResponseDTO("updateduser", "test@example.com");
-        when(userService.updateUser(testUserId, updateDTO)).thenReturn(updatedResponse);
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        when(userFacade.updateUser(updateDTO, currentUser)).thenReturn(updatedResponse);
 
-        UpdateUserResponseDTO response = userController.updateUser(testUserId, updateDTO);
+        UpdateUserResponseDTO response = userController.updateUser(updateDTO);
 
         assertNotNull(response);
         assertEquals("updateduser", response.name());
         assertEquals("test@example.com", response.email());
-        verify(userService, times(1)).updateUser(testUserId, updateDTO);
+        verify(userFacade, times(1)).updateUser(updateDTO, currentUser);
+    }
+
+    @Test
+    @DisplayName("Should follow user on behalf of current user")
+    void followShouldDelegateToFacade() {
+        FollowUnfollowRequestDTO request = new FollowUnfollowRequestDTO(testUserId, UUID.randomUUID());
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+
+        assertDoesNotThrow(() -> userController.follow(request));
+        verify(userFacade, times(1)).follow(request, currentUser);
+    }
+
+    @Test
+    @DisplayName("Should unfollow user on behalf of current user")
+    void unfollowShouldDelegateToFacade() {
+        FollowUnfollowRequestDTO request = new FollowUnfollowRequestDTO(testUserId, UUID.randomUUID());
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+
+        assertDoesNotThrow(() -> userController.unfollow(request));
+        verify(userFacade, times(1)).unfollow(request, currentUser);
     }
 
     @Test
@@ -106,7 +135,6 @@ class UserControllerTest {
     void getFollowersShouldReturnPageOfFollowers() {
         int page = 0;
         int size = 10;
-        Pageable pageable = PageRequest.of(page, size);
 
         UserFollowDTO follower1 = UserFollowDTO.builder()
                 .id(UUID.randomUUID())
@@ -131,7 +159,7 @@ class UserControllerTest {
                 .empty(false)
                 .build();
 
-        when(userService.getFollowers(testUserId, pageable)).thenReturn(followersPage);
+        when(userFacade.getFollowers(testUserId, page, size)).thenReturn(followersPage);
 
         PageResponseDTO<UserFollowDTO> result = userController.getFollowers(testUserId, page, size);
 
@@ -139,7 +167,7 @@ class UserControllerTest {
         assertEquals(2, result.totalElements());
         assertEquals("Follower 1", result.content().get(0).name());
         assertEquals("Follower 2", result.content().get(1).name());
-        verify(userService, times(1)).getFollowers(testUserId, pageable);
+        verify(userFacade, times(1)).getFollowers(testUserId, page, size);
     }
 
     @Test
@@ -147,7 +175,6 @@ class UserControllerTest {
     void getFollowingShouldReturnPageOfFollowing() {
         int page = 0;
         int size = 10;
-        Pageable pageable = PageRequest.of(page, size);
 
         UserFollowDTO following1 = UserFollowDTO.builder()
                 .id(UUID.randomUUID())
@@ -172,7 +199,7 @@ class UserControllerTest {
                 .empty(false)
                 .build();
 
-        when(userService.getFollowing(testUserId, pageable)).thenReturn(followingPage);
+        when(userFacade.getFollowing(testUserId, page, size)).thenReturn(followingPage);
 
         PageResponseDTO<UserFollowDTO> result = userController.getFollowing(testUserId, page, size);
 
@@ -180,17 +207,16 @@ class UserControllerTest {
         assertEquals(2, result.totalElements());
         assertEquals("Following 1", result.content().get(0).name());
         assertEquals("Following 2", result.content().get(1).name());
-        verify(userService, times(1)).getFollowing(testUserId, pageable);
+        verify(userFacade, times(1)).getFollowing(testUserId, page, size);
     }
 
     @Test
-    @DisplayName("Should get current user information by token successfully")
-    void getMeShouldReturnCurrentUserWhenTokenIsValid() {
-        String token = "Bearer valid-jwt-token";
+    @DisplayName("Should get current user information successfully")
+    void getMeShouldReturnCurrentUser() {
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        when(userFacade.getUserInformation(currentUser)).thenReturn(testUserResponseDTO);
 
-        when(userService.getUserInformation(token)).thenReturn(testUserResponseDTO);
-
-        UserResponseDTO result = userController.getMe(token);
+        UserResponseDTO result = userController.getMe();
 
         assertNotNull(result);
         assertEquals(testUserId, result.id());
@@ -200,28 +226,12 @@ class UserControllerTest {
         assertEquals(10L, result.followersCount());
         assertEquals(5L, result.followingCount());
 
-        verify(userService, times(1)).getUserInformation(token);
-    }
-
-    @Test
-    @DisplayName("Should throw EntityNotFoundException when token is invalid or user not found")
-    void getMeShouldThrowWhenTokenIsInvalid() {
-        String invalidToken = "Bearer invalid-token";
-
-        when(userService.getUserInformation(invalidToken))
-                .thenThrow(new EntityNotFoundException("User not found"));
-
-        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
-                () -> userController.getMe(invalidToken));
-
-        assertEquals("User not found", exception.getMessage());
-        verify(userService, times(1)).getUserInformation(invalidToken);
+        verify(userFacade, times(1)).getUserInformation(currentUser);
     }
 
     @Test
     @DisplayName("Should get current user information with minimal data")
     void getMeShouldReturnCurrentUserWithMinimalData() {
-        String token = "Bearer valid-jwt-token";
         UserResponseDTO minimalUserDTO = UserResponseDTO.builder()
                 .id(testUserId)
                 .name("newuser")
@@ -231,9 +241,10 @@ class UserControllerTest {
                 .followingCount(0L)
                 .build();
 
-        when(userService.getUserInformation(token)).thenReturn(minimalUserDTO);
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        when(userFacade.getUserInformation(currentUser)).thenReturn(minimalUserDTO);
 
-        UserResponseDTO result = userController.getMe(token);
+        UserResponseDTO result = userController.getMe();
 
         assertNotNull(result);
         assertEquals(testUserId, result.id());
@@ -243,22 +254,7 @@ class UserControllerTest {
         assertEquals(0L, result.followersCount());
         assertEquals(0L, result.followingCount());
 
-        verify(userService, times(1)).getUserInformation(token);
-    }
-
-    @Test
-    @DisplayName("Should throw RuntimeException when token format is invalid")
-    void getMeShouldThrowWhenTokenFormatIsInvalid() {
-        String malformedToken = "invalid-format";
-
-        when(userService.getUserInformation(malformedToken))
-                .thenThrow(new RuntimeException("Invalid token format"));
-
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> userController.getMe(malformedToken));
-
-        assertEquals("Invalid token format", exception.getMessage());
-        verify(userService, times(1)).getUserInformation(malformedToken);
+        verify(userFacade, times(1)).getUserInformation(currentUser);
     }
 
 }

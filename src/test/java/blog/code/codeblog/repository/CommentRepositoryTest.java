@@ -30,7 +30,7 @@ class CommentRepositoryTest {
         User user = new User("Comentador", "comentador@email.com", "senha", UserRoles.COSTUMER);
         userRepository.save(user);
         Post post = new Post();
-        post.setAuthor(user.getName());
+        post.setAuthorName(user.getName());
         post.setDate(LocalDate.now());
         post.setContent("Post para comentário");
         post.setTitle("Título do Post");

@@ -4,7 +4,9 @@ import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.post.PutPostDTO;
 import blog.code.codeblog.dto.post.CreatePostRequestDTO;
 import blog.code.codeblog.dto.post.PostResponseDTO;
-import blog.code.codeblog.service.PostService;
+import blog.code.codeblog.facade.PostFacade;
+import blog.code.codeblog.model.User;
+import blog.code.codeblog.service.provider.UserProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,17 +20,20 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class PostControllerTest {
 
     @Mock
-    private PostService postService;
+    private PostFacade postFacade;
+
+    @Mock
+    private UserProvider userProvider;
 
     @InjectMocks
     private PostController postController;
 
+    private User currentUser;
     PostResponseDTO mockPost1;
     PostResponseDTO mockPost2;
     List<PostResponseDTO> mockPostList;
@@ -36,6 +41,9 @@ class PostControllerTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+
+        currentUser = new User();
+        currentUser.setId(UUID.randomUUID());
 
         mockPost1 = PostResponseDTO.builder()
                 .postId(UUID.randomUUID())
@@ -59,7 +67,7 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("Should return all posts for a specific user")
+    @DisplayName("Should return all posts for the current user")
     void getAllUserPosts() {
         UUID userId = UUID.randomUUID();
         int page = 0;
@@ -76,7 +84,8 @@ class PostControllerTest {
                 .empty(false)
                 .build();
 
-        when(postService.getAllUserPosts(userId, page, size)).thenReturn(pageResponse);
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        when(postFacade.getAllUserPosts(currentUser, page, size)).thenReturn(pageResponse);
 
         PageResponseDTO<PostResponseDTO> result = postController.getAllUserPosts(userId, page, size);
 
@@ -88,13 +97,12 @@ class PostControllerTest {
         assertTrue(result.last());
         assertEquals(0, result.currentPage());
         assertEquals(1, result.totalPages());
-        verify(postService, times(1)).getAllUserPosts(userId, page, size);
+        verify(postFacade, times(1)).getAllUserPosts(currentUser, page, size);
     }
 
     @Test
-    @DisplayName("Should return balanced feed for a user")
+    @DisplayName("Should return balanced feed for the current user")
     void getBalancedFeed() {
-        UUID userId = UUID.randomUUID();
         int page = 0;
         int size = 10;
 
@@ -109,14 +117,15 @@ class PostControllerTest {
                 .empty(false)
                 .build();
 
-        when(postService.getBalancedFeed(userId, page, size)).thenReturn(pageResponse);
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        when(postFacade.getFeed(currentUser, page, size)).thenReturn(pageResponse);
 
-        PageResponseDTO<PostResponseDTO> result = postController.getBalancedFeed(userId, page, size);
+        PageResponseDTO<PostResponseDTO> result = postController.getBalancedFeed(page, size);
 
         assertNotNull(result);
         assertEquals(2, result.content().size());
         assertEquals("Primeiro Post", result.content().getFirst().title());
-        verify(postService, times(1)).getBalancedFeed(userId, page, size);
+        verify(postFacade, times(1)).getFeed(currentUser, page, size);
     }
 
     @Test
@@ -125,25 +134,25 @@ class PostControllerTest {
         CreatePostRequestDTO requestDTO = new CreatePostRequestDTO(
                 "First Post",
                 "Content of the first post",
-                UUID.randomUUID(),
                 null
         );
 
         String generatedPostId = UUID.randomUUID().toString();
-        when(postService.save(any(CreatePostRequestDTO.class))).thenReturn(generatedPostId);
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        when(postFacade.createPost(requestDTO, currentUser)).thenReturn(generatedPostId);
 
         String response = postController.createPost(requestDTO);
 
         assertNotNull(response);
         assertEquals(generatedPostId, response);
-        verify(postService, times(1)).save(any(CreatePostRequestDTO.class));
+        verify(postFacade, times(1)).createPost(requestDTO, currentUser);
     }
 
     @Test
     @DisplayName("Should update a post")
     void updatePost() {
         UUID postId = UUID.randomUUID();
-        PutPostDTO updatedPost = new PutPostDTO("New Title", "New Content", UUID.randomUUID(), UUID.randomUUID());
+        PutPostDTO updatedPost = new PutPostDTO(postId, "New Title", "New Content");
 
         PostResponseDTO mockUpdatedPost = PostResponseDTO.builder()
                 .postId(postId)
@@ -153,39 +162,41 @@ class PostControllerTest {
                 .createdAt(LocalDate.now())
                 .images(Map.of())
                 .build();
-        when(postService.updatePost(postId, updatedPost)).thenReturn(mockUpdatedPost);
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        when(postFacade.updatePost(updatedPost, currentUser)).thenReturn(mockUpdatedPost);
 
-        PostResponseDTO result = postController.updatePost(postId, updatedPost);
+        PostResponseDTO result = postController.updatePost(updatedPost);
 
         assertNotNull(result);
         assertEquals("New Title", result.title());
-        verify(postService, times(1)).updatePost(postId, updatedPost);
+        verify(postFacade, times(1)).updatePost(updatedPost, currentUser);
     }
 
     @Test
     @DisplayName("Should handle generic error when updating a post")
     void updatePost_ServiceException() {
         UUID postId = UUID.randomUUID();
-        PutPostDTO updatedPost = new PutPostDTO("New Title", "New Content", UUID.randomUUID(), UUID.randomUUID());
+        PutPostDTO updatedPost = new PutPostDTO(postId, "New Title", "New Content");
 
-        when(postService.updatePost(postId, updatedPost)).thenThrow(new RuntimeException("Unexpected error updating post"));
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        when(postFacade.updatePost(updatedPost, currentUser)).thenThrow(new RuntimeException("Unexpected error updating post"));
 
         RuntimeException exception =
-                assertThrows(RuntimeException.class, () -> postController.updatePost(postId, updatedPost));
+                assertThrows(RuntimeException.class, () -> postController.updatePost(updatedPost));
 
         assertEquals("Unexpected error updating post", exception.getMessage());
-        verify(postService, times(1)).updatePost(postId, updatedPost);
+        verify(postFacade, times(1)).updatePost(updatedPost, currentUser);
     }
 
     @Test
     @DisplayName("Should delete a post")
     void deletePost() {
         UUID postId = UUID.randomUUID();
-        String token = UUID.randomUUID().toString();
-        doNothing().when(postService).deletePost(postId, token);
+        when(userProvider.getCurrentUser()).thenReturn(currentUser);
+        doNothing().when(postFacade).deletePost(postId, currentUser);
 
-        assertDoesNotThrow(() -> postController.deletePost(postId, token));
-        verify(postService, times(1)).deletePost(postId, token);
+        assertDoesNotThrow(() -> postController.deletePost(postId));
+        verify(postFacade, times(1)).deletePost(postId, currentUser);
     }
 
 }

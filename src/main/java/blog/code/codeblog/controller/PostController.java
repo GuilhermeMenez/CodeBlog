@@ -6,7 +6,8 @@ import blog.code.codeblog.dto.comment.CommentResponseDTO;
 import blog.code.codeblog.dto.post.CreatePostRequestDTO;
 import blog.code.codeblog.dto.post.PostResponseDTO;
 import blog.code.codeblog.dto.post.PutPostDTO;
-import blog.code.codeblog.service.PostService;
+import blog.code.codeblog.facade.PostFacade;
+import blog.code.codeblog.service.provider.UserProvider;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +25,9 @@ import java.util.UUID;
 public class PostController {
 
     @Autowired
-    PostService postService;
+    PostFacade postFacade;
+    @Autowired
+    UserProvider userProvider;
 
     @GetMapping(value = "userPosts/{id}")
     @ResponseStatus(HttpStatus.OK)
@@ -33,52 +36,51 @@ public class PostController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         log.info("Get all user posts request received for user {} (page: {}, size: {})", userid, page, size);
-        return postService.getAllUserPosts(userid, page, size);
+        return postFacade.getAllUserPosts(userProvider.getCurrentUser(), page, size);
     }
 
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
     public PostResponseDTO getPostbyId(@PathVariable UUID id) {
         log.info("Get post by id request received for post {}", id);
-        return postService.findById(id);
+        return postFacade.getPostById(id);
     }
 
     @GetMapping("/users/{userId}/feed")
     @ResponseStatus(HttpStatus.OK)
     public PageResponseDTO<PostResponseDTO> getBalancedFeed(
-            @PathVariable UUID userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        log.info("Get balanced feed request received for user {} (page: {}, size: {})", userId, page, size);
-        return postService.getBalancedFeed(userId, page, size);
+        log.info("Get balanced feed request received for user {} (page: {}, size: {})",userProvider.getCurrentUser().getId() , page, size);
+        return postFacade.getFeed(userProvider.getCurrentUser(), page, size);
     }
 
     @PostMapping("/newpost")
     @ResponseStatus(HttpStatus.CREATED)
-    public String createPost(@ModelAttribute @Valid CreatePostRequestDTO post) {
+    public String createPost(@ModelAttribute @Valid CreatePostRequestDTO post)  {
         log.info("Create post request received: {}", post);
-        return postService.save(post);
+        return postFacade.createPost(post, userProvider.getCurrentUser());
     }
 
-    @PutMapping("/edit/{id}")
+    @PutMapping("/edit")
     @ResponseStatus(HttpStatus.OK)
-    public PostResponseDTO updatePost(@PathVariable("id") UUID postId, @RequestBody @Valid PutPostDTO updatedPost) {
+    public PostResponseDTO updatePost(@RequestBody @Valid PutPostDTO updatedPost)  {
         log.info("Update post request received: {}", updatedPost);
-        return postService.updatePost(postId, updatedPost);
+        return postFacade.updatePost(updatedPost, userProvider.getCurrentUser());
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deletePost(@PathVariable("id") UUID postId, @RequestHeader("Authorization") String token) {
+    public void deletePost(@PathVariable("id") UUID postId)  {
         log.info("Delete post request received: {}", postId);
-        postService.deletePost(postId, token);
+        postFacade.deletePost(postId, userProvider.getCurrentUser());
     }
 
     @GetMapping("/posts")
     @ResponseStatus(HttpStatus.OK)
     public List<PostResponseDTO> getAllPosts() {
         log.info("Get all posts request received");
-        return postService.findAll();
+        return postFacade.getAllPosts();
     }
 
     @GetMapping("/{id}/comments")
@@ -88,13 +90,13 @@ public class PostController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         log.info("Get all comments for post request received for post {} (page: {}, size: {})", id, page, size);
-        return postService.getPostComments(id, page, size);
+        return postFacade.getPostComments(id, page, size);
 
     }
 
     @PostMapping("upload")
     public ImageUploadResponseDTO uploadImage(@RequestParam("file") MultipartFile file, @RequestParam("postId") UUID postId) throws IOException {
         log.info("Upload image request received: {}", file.getOriginalFilename());
-        return postService.savePostImage(postId,file);
+        return postFacade.savePostImage(postId, file, userProvider.getCurrentUser());
     }
 }

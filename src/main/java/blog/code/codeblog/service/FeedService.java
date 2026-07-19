@@ -1,7 +1,10 @@
 package blog.code.codeblog.service;
 
+import blog.code.codeblog.command.feed.GetFeedCommand;
 import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.post.PostResponseDTO;
+import blog.code.codeblog.mapper.PageMapper;
+import blog.code.codeblog.mapper.PostMapper;
 import blog.code.codeblog.model.Post;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.Getter;
@@ -32,30 +35,30 @@ public class FeedService extends PostService {
 
     @Cacheable(
             value = FEED_CACHE,
-            key = "#userId + '_' + (T(System).currentTimeMillis() / @postService.feedSeedIntervalMs) + '_' + #page + '_' + #size",
+            key = "#command.getUser().getId() + '_' + (T(System).currentTimeMillis() / #root.target.feedSeedIntervalMs) + '_' + #command.getPage() + '_' + #command.getSize()",
             unless = "#result.empty == true"
     )
-    public PageResponseDTO<PostResponseDTO> getBalancedFeed(UUID userId, int page, int size) {
-        log.info("[getBalancedFeed] Getting balanced feed for userId: {} (page: {}, size: {})", userId, page, size);
+    public PageResponseDTO<PostResponseDTO> getBalancedFeed(GetFeedCommand command) {
+        log.info("[getBalancedFeed] Getting balanced feed for userId: {} (page: {}, size: {})", command.getUser().getId(), command.getPage(), command.getSize());
 
-        this.validateUserExists(userId);
+        this.validateUserExists(command.getUser().getId());
 
         LocalDate since = LocalDate.now().minusDays(recentPostsDays);
 
         // Busca os IDs dos usuários seguidos uma única vez
-        Set<UUID> followedUserIds = userFollowRepository.findFollowedIdsByUserId(userId);
+        Set<UUID> followedUserIds = userFollowRepository.findFollowedIdsByUserId(command.getUser().getId());
 
-        long totalElements = calculateTotalElements(userId, since, followedUserIds);
+        long totalElements = calculateTotalElements(command.getUser().getId(), since, followedUserIds);
 
-        long seed = generateDeterministicSeed(userId, totalElements);
+        long seed = generateDeterministicSeed(command.getUser().getId(), totalElements);
 
-        List<Post> allPosts = fetchFeedPosts(userId, since, page, size, followedUserIds);
+        List<Post> allPosts = fetchFeedPosts(command.getUser().getId(), since, command.getPage(), command.getSize(), followedUserIds);
 
         List<Post> shuffledPosts = shuffleWithSeed(allPosts, seed);
 
-        List<PostResponseDTO> content = paginateAndConvert(shuffledPosts, page, size);
+        List<PostResponseDTO> content = paginateAndConvert(shuffledPosts, command.getPage(), command.getSize());
 
-        return buildFeedResponse(content, page, size, totalElements);
+        return PageMapper.toPageResponseDTO(content, command.getPage(), command.getSize(), totalElements);
     }
 
     private List<Post> shuffleWithSeed(List<Post> posts, long seed) {
@@ -85,7 +88,7 @@ public class FeedService extends PostService {
             return Collections.emptyList();
         }
         return posts.subList(fromIndex, toIndex).stream()
-                .map(this::convertToPostResponseDTO)
+                .map(PostMapper::toPostResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -104,25 +107,7 @@ public class FeedService extends PostService {
     }
 
 
-    private PageResponseDTO<PostResponseDTO> buildFeedResponse(
-            List<PostResponseDTO> content,
-            int page,
-            int size,
-            long totalElements) {
 
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-
-        return PageResponseDTO.<PostResponseDTO>builder()
-                .content(content)
-                .currentPage(page)
-                .totalPages(totalPages)
-                .totalElements(totalElements)
-                .size(size)
-                .first(page == 0)
-                .last(page >= totalPages - 1)
-                .empty(content.isEmpty())
-                .build();
-    }
 
     protected void validateUserExists(UUID userId) {
         if (!userRepository.existsById(userId)) {

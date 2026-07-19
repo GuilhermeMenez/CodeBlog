@@ -27,7 +27,6 @@ public class CloudinaryService implements CloudinaryServiceInterface {
 
     public ImageUploadResponseDTO uploadFile(MultipartFile file, FlowImageFlag flag, String userId, String postId) throws IOException {
         logUploadStart(flag, userId, postId);
-
         return uploadToCloudinary(file, flag);
     }
 

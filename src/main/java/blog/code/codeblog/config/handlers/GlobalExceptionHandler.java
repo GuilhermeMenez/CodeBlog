@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -15,6 +16,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -37,6 +39,22 @@ public class GlobalExceptionHandler {
         ErrorResponse response = createErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Internal Server Error",
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    @ExceptionHandler(IOException.class)
+    public ResponseEntity<ErrorResponse> handleIOException(
+            IOException ex,
+            HttpServletRequest request) {
+
+        log.error("I/O error: {}", ex.getMessage(), ex);
+
+        ErrorResponse response = createErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Error processing file",
                 request.getRequestURI()
         );
 
@@ -86,6 +104,22 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
+
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleBadCredentials(
+            AuthenticationCredentialsNotFoundException ex, HttpServletRequest request) {
+
+        log.error("not authorized {}", ex.getMessage());
+
+        ErrorResponse response = createErrorResponse(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid credentials",
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
 
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

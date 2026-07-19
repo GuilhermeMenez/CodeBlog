@@ -38,7 +38,7 @@ public class Post {
     @NotBlank
     private String content;
 
-    private String author;
+    private String authorName;
 
     @NotNull
     @JsonFormat(pattern = "dd/MM/yyyy")

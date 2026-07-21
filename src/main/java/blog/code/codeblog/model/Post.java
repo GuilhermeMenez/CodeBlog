@@ -1,6 +1,5 @@
 package blog.code.codeblog.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -25,7 +24,7 @@ import lombok.Setter;
     @Index(name = "idx_post_user_id", columnList = "user_id"),
     @Index(name = "idx_post_date", columnList = "date DESC"),
     @Index(name = "idx_post_user_date", columnList = "user_id, date DESC"),
-    @Index(name = "idx_post_author", columnList = "author")
+    @Index(name = "idx_post_author", columnList = "author_name")
 })
 public class Post {
     @Id
@@ -38,7 +37,7 @@ public class Post {
     @NotBlank
     private String content;
 
-    private String author;
+    private String authorName;
 
     @NotNull
     @JsonFormat(pattern = "dd/MM/yyyy")

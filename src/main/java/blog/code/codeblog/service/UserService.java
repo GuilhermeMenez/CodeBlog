@@ -1,21 +1,30 @@
 package blog.code.codeblog.service;
 
+import blog.code.codeblog.command.user.DeleteUserCommand;
+import blog.code.codeblog.command.user.FollowCommand;
+import blog.code.codeblog.command.user.GetFollowersCommand;
+import blog.code.codeblog.command.user.GetFollowingCommand;
+import blog.code.codeblog.command.user.UnfollowCommand;
+import blog.code.codeblog.command.user.UpdateUserCommand;
 import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
 import blog.code.codeblog.dto.user.*;
 import blog.code.codeblog.enums.FlowImageFlag;
+import blog.code.codeblog.mapper.PageMapper;
+import blog.code.codeblog.mapper.UserMapper;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.model.UserFollow;
 import blog.code.codeblog.repository.UserFollowRepository;
 import blog.code.codeblog.repository.UserRepository;
+import blog.code.codeblog.service.interfaces.UserServiceInterface;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,7 +35,6 @@ import org.springframework.security.access.AccessDeniedException;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,7 +42,7 @@ import static blog.code.codeblog.config.RedisConfig.*;
 
 @Slf4j
 @Service
-public class UserService {
+public class UserService implements UserServiceInterface {
     @Autowired
     UserRepository userRepository;
 
@@ -47,20 +55,17 @@ public class UserService {
     @Autowired
     private CloudinaryService cloudinaryService;
 
-    @Lazy
     @Autowired
     TokenService tokenService;
 
-    @Lazy
-    @Autowired
-    UserService self;
-
+    @Override
     public Optional<User> findById(UUID id) {
         log.info("[findById] Finding user by id: {}", id);
         return userRepository.findById(id);
     }
 
-    @Cacheable(value = "user", key = "#id", unless = "#result == null")
+    @Override
+    @Cacheable(value = USER_CACHE, key = "#id", unless = "#result == null")
     public UserResponseDTO findUserById(UUID id) {
         log.info("[findByIdAsDTO] Finding user by id: {}", id);
         User user = userRepository.findById(id)
@@ -68,15 +73,21 @@ public class UserService {
                     log.warn("[findByIdAsDTO] User not found. id: {}", id);
                     return new EntityNotFoundException("User not found with id: " + id);
                 });
-        return convertToUserResponseDTO(user);
+        return UserMapper.toUserResponseDTO(
+                user,
+                userFollowRepository.countFollowersByUserId(user.getId()),
+                userFollowRepository.countFollowingByUserId(user.getId())
+        );
     }
 
 
+    @Override
     public User findByLogin(String login){
         log.info("[findByLogin] Attempting to find user by login: {}", login);
         return userRepository.findByLogin(login);
     }
 
+    @Override
     public void saveUser(CreateUserDTO user){
         log.info("[saveUser] Saving user with login: {}", user.email());
 
@@ -99,42 +110,41 @@ public class UserService {
         }
     }
 
+    @Override
     @Transactional
-    @CacheEvict(value = "user", key = "#id")
-    public UpdateUserResponseDTO updateUser(UUID id, UpdateUserRequestDTO updatedUser) {
-        log.info("[updateUser] Attempting to update user with id: {}", id);
+    @CacheEvict(value = USER_CACHE, key = "#command.userId")
+    public UpdateUserResponseDTO updateUser(UpdateUserCommand command) {
+        log.info("[updateUser] Attempting to update user with id: {}", command.getUserId());
 
-        User existingUser = userRepository.findById(id)
+        User existingUser = userRepository.findById(command.getUserId())
                 .orElseThrow(() -> {
-                    log.warn("[updateUser] User not found. id: {}", id);
+                    log.warn("[updateUser] User not found. id: {}", command.getUserId());
                     return new EntityNotFoundException("User not found");
                 });
 
-        if (updatedUser.name() != null)     existingUser.setName(updatedUser.name());
-        if (updatedUser.email() != null)    existingUser.setLogin(updatedUser.email());
-        if (updatedUser.password() != null) existingUser.setPassword(bCryptPasswordEncoder.encode(updatedUser.password()));
+        if (command.getName() != null)     existingUser.setName(command.getName());
+        if (command.getEmail() != null)    existingUser.setLogin(command.getEmail());
+        if (command.getPassword() != null) existingUser.setPassword(bCryptPasswordEncoder.encode(command.getPassword()));
 
-        log.info("[updateUser] User updated successfully. id: {}", id);
-        return UpdateUserResponseDTO.builder()
-                .name(existingUser.getName())
-                .email(existingUser.getLogin())
-                .build();
+        log.info("[updateUser] User updated successfully. id: {}", command.getUserId());
+        return UserMapper.toUpdateUserResponseDTO(existingUser);
     }
 
+    @Override
     @Transactional
     @Caching(evict = {
-            @CacheEvict(value = USER_CACHE, key = "#userId"),
+            @CacheEvict(value = USER_CACHE, key = "#command.userId"),
             @CacheEvict(value = FOLLOWERS_CACHE, allEntries = true),
             @CacheEvict(value = FOLLOWING_CACHE, allEntries = true)
     })
-    public void deleteUser(UUID userId) {
-        log.info("[deleteUser] Attempting to delete user with id: {}", userId);
-        if (!userRepository.existsById(userId)) {
-            log.warn("[deleteUser] User not found for deletion. id: {}", userId);
-            throw new EntityNotFoundException("User not found with id: " + userId);
+    public void deleteUser(DeleteUserCommand command) {
+        log.info("[deleteUser] Attempting to delete user with id: {}", command.getUserId());
+        if (!userRepository.existsById(command.getUserId())) {
+            log.warn("[deleteUser] User not found for deletion. id: {}", command.getUserId());
+            throw new EntityNotFoundException("User not found with id: " + command.getUserId());
         }
-        userRepository.deleteById(userId);
-        log.info("[deleteUser] User deleted successfully. id: {}", userId);
+        userRepository.deleteById(command.getUserId());
+        log.info("[deleteUser] User deleted successfully. id: {}", command.getUserId());
     }
 
 
@@ -159,15 +169,16 @@ public class UserService {
                 .build();
     }
 
+    @Override
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = FOLLOWERS_CACHE, allEntries = true),
             @CacheEvict(value = FOLLOWING_CACHE,  allEntries = true)
     })
-    public void follow(UUID followerId, UUID followedId) {
-        validateNotSameUser(followerId, followedId);
-        User follower = findUserOrThrow(followerId);
-        User followed = findUserOrThrow(followedId);
+    public void follow(FollowCommand command) {
+        validateNotSameUser(command.getFollowerId(), command.getFollowedId());
+        User follower = findUserOrThrow(command.getFollowerId());
+        User followed = findUserOrThrow(command.getFollowedId());
 
         try {
             userFollowRepository.save(UserFollow.builder()
@@ -175,27 +186,28 @@ public class UserService {
                     .followed(followed)
                     .build());
         } catch (DataIntegrityViolationException e) {
-            log.warn("[follow] User already follows this user. followerId: {}, followedId: {}", followerId, followedId);
+            log.warn("[follow] User already follows this user. followerId: {}, followedId: {}", command.getFollowerId(), command.getFollowedId());
             throw new IllegalStateException("User already follows this user");
         }
-        log.info("[follow] Follow operation successful. followerId: {}, followedId: {}", followerId, followedId);
+        log.info("[follow] Follow operation successful. followerId: {}, followedId: {}", command.getFollowerId(), command.getFollowedId());
     }
 
+    @Override
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = FOLLOWERS_CACHE, allEntries = true),
             @CacheEvict(value = FOLLOWING_CACHE,  allEntries = true)
     })
-    public void unfollow(UUID followerId, UUID followedId) {
-        log.info("[unfollow] Attempting to unfollow user. followerId: {}, followedId: {}", followerId, followedId);
-        validateNotSameUser(followerId, followedId);
+    public void unfollow(UnfollowCommand command) {
+        log.info("[unfollow] Attempting to unfollow user. followerId: {}, followedId: {}", command.getFollowerId(), command.getFollowedId());
+        validateNotSameUser(command.getFollowerId(), command.getFollowedId());
 
-        int deleted = userFollowRepository.deleteByFollower_IdAndFollowed_Id(followerId, followedId);
+        int deleted = userFollowRepository.deleteByFollower_IdAndFollowed_Id(command.getFollowerId(), command.getFollowedId());
         if (deleted == 0) {
-            log.warn("[unfollow] User does not follow this user. followerId: {}, followedId: {}", followerId, followedId);
+            log.warn("[unfollow] User does not follow this user. followerId: {}, followedId: {}", command.getFollowerId(), command.getFollowedId());
             throw new IllegalStateException("User does not follow this user");
         }
-        log.info("[unfollow] Unfollow operation successful. followerId: {}, followedId: {}", followerId, followedId);
+        log.info("[unfollow] Unfollow operation successful. followerId: {}, followedId: {}", command.getFollowerId(), command.getFollowedId());
 
     }
 
@@ -214,11 +226,13 @@ public class UserService {
                 });
     }
 
+    @Override
     public User getReference(UUID id){
         log.info("[getReference] Getting reference for user id: {}", id);
         return userRepository.getReferenceById(id);
     }
 
+    @Override
     @CacheEvict(value = USER_CACHE, allEntries = true)
     public boolean deleteProfilePic(String publicId) {
         log.info("[deleteProfilePic] Attempting to delete profile pic with publicId: {}", publicId);
@@ -235,87 +249,45 @@ public class UserService {
     }
 
 
+    @Override
     @Cacheable(
             value = FOLLOWERS_CACHE,
-            key = "#userId + '_' + #pageable.pageNumber + '_' + #pageable.pageSize",
-            unless = "#result.empty == true"
-    )   public PageResponseDTO<UserFollowDTO> getFollowers(UUID userId, Pageable pageable) {
-        log.info("[getFollowers] Getting followers for user id: {} (page: {}, size: {})", userId, pageable.getPageNumber(), pageable.getPageSize());
-
-        if (!userRepository.existsById(userId)) {
-            log.warn("[getFollowers] User not found. id: {}", userId);
-            throw new EntityNotFoundException("User not found with id: " + userId);
-        }
-
-        Page<User> followersPage = userFollowRepository.findFollowersByUserId(userId, pageable);
-
-        return PageResponseDTO.<UserFollowDTO>builder()
-                .content(followersPage.getContent().stream().map(this::convertToUserFollowDTO).collect(Collectors.toList()))
-                .currentPage(followersPage.getNumber())
-                .totalPages(followersPage.getTotalPages())
-                .totalElements(followersPage.getTotalElements())
-                .size(followersPage.getSize())
-                .first(followersPage.isFirst())
-                .last(followersPage.isLast())
-                .empty(followersPage.isEmpty())
-                .build();
-    }
-
-    @Cacheable(
-            value = FOLLOWING_CACHE,
-            key = "#userId + '_' + #pageable.pageNumber + '_' + #pageable.pageSize",
+            key = "#command.userId + '_' + #command.page + '_' + #command.size",
             unless = "#result.empty == true"
     )
-    public PageResponseDTO<UserFollowDTO> getFollowing(UUID userId, Pageable pageable) {
-        log.info("[getFollowing] Getting following for user id: {} (page: {}, size: {})", userId, pageable.getPageNumber(), pageable.getPageSize());
+    public PageResponseDTO<UserFollowDTO> getFollowers(GetFollowersCommand command) {
+        log.info("[getFollowers] Getting followers for user id: {} (page: {}, size: {})", command.getUserId(), command.getPage(), command.getSize());
 
-        if (!userRepository.existsById(userId)) {
-            log.warn("[getFollowing] User not found. id: {}", userId);
-            throw new EntityNotFoundException("User not found with id: " + userId);
+        if (!userRepository.existsById(command.getUserId())) {
+            log.warn("[getFollowers] User not found. id: {}", command.getUserId());
+            throw new EntityNotFoundException("User not found with id: " + command.getUserId());
         }
 
-        Page<User> followingPage = userFollowRepository.findFollowingByUserId(userId, pageable);
+        Pageable pageable = PageRequest.of(command.getPage(), command.getSize());
+        Page<User> followersPage = userFollowRepository.findFollowersByUserId(command.getUserId(), pageable);
 
-        return PageResponseDTO.<UserFollowDTO>builder()
-                .content(followingPage.getContent().stream().map(this::convertToUserFollowDTO).collect(Collectors.toList()))
-                .currentPage(followingPage.getNumber())
-                .totalPages(followingPage.getTotalPages())
-                .totalElements(followingPage.getTotalElements())
-                .size(followingPage.getSize())
-                .first(followingPage.isFirst())
-                .last(followingPage.isLast())
-                .empty(followingPage.isEmpty())
-                .build();
+        return PageMapper.toPageResponseDTO(followersPage, UserMapper::toUserFollowDTO);
     }
 
-    private UserFollowDTO convertToUserFollowDTO(User user) {
-        return UserFollowDTO.builder()
-                .id(user.getId())
-                .name(user.getName())
-                .login(user.getLogin())
-                .urlProfilePic(user.getUrlProfilePic())
-                .build();
+    @Override
+    @Cacheable(
+            value = FOLLOWING_CACHE,
+            key = "#command.userId + '_' + #command.page + '_' + #command.size",
+            unless = "#result.empty == true"
+    )
+    public PageResponseDTO<UserFollowDTO> getFollowing(GetFollowingCommand command) {
+        log.info("[getFollowing] Getting following for user id: {} (page: {}, size: {})", command.getUserId(), command.getPage(), command.getSize());
+
+        if (!userRepository.existsById(command.getUserId())) {
+            log.warn("[getFollowing] User not found. id: {}", command.getUserId());
+            throw new EntityNotFoundException("User not found with id: " + command.getUserId());
+        }
+
+        Pageable pageable = PageRequest.of(command.getPage(), command.getSize());
+        Page<User> followingPage = userFollowRepository.findFollowingByUserId(command.getUserId(), pageable);
+
+        return PageMapper.toPageResponseDTO(followingPage, UserMapper::toUserFollowDTO);
     }
-
-
-    private UserResponseDTO convertToUserResponseDTO(User user) {
-        return new UserResponseDTO(
-                user.getId(),
-                user.getName(),
-                user.getLogin(),
-                user.getUrlProfilePic(),
-                userFollowRepository.countFollowersByUserId(user.getId()),
-                userFollowRepository.countFollowingByUserId(user.getId())
-        );
-    }
-
-
-    public UserResponseDTO getUserInformation(String token) {
-        var userid = tokenService.getSubjectIdFromToken(token);
-        log.info("[getUserInformation] Getting user information for user id: {}", userid);
-        return self.findUserById(UUID.fromString(userid));
-    }
-
 
 
     private User getAuthorizedUser(UUID userId) {

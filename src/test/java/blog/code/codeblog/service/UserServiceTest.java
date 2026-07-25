@@ -1,6 +1,11 @@
 package blog.code.codeblog.service;
 
-import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
+import blog.code.codeblog.command.user.DeleteUserCommand;
+import blog.code.codeblog.command.user.FollowCommand;
+import blog.code.codeblog.command.user.GetFollowersCommand;
+import blog.code.codeblog.command.user.GetFollowingCommand;
+import blog.code.codeblog.command.user.UnfollowCommand;
+import blog.code.codeblog.command.user.UpdateUserCommand;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
 import blog.code.codeblog.dto.user.CreateUserDTO;
 import blog.code.codeblog.model.User;
@@ -19,7 +24,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -43,7 +47,6 @@ class UserServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        ReflectionTestUtils.setField(userService, "self", userService);
     }
 
     @Test
@@ -67,6 +70,50 @@ class UserServiceTest {
         Optional<User> result = userService.findById(id);
         assertFalse(result.isPresent());
         verify(userRepository).findById(id);
+    }
+
+    @Test
+    @DisplayName("Should find user by id as DTO successfully")
+    void findUserByIdAsDtoSuccess() {
+        UUID userId = UUID.randomUUID();
+
+        User user = new User();
+        user.setId(userId);
+        user.setName("John Doe");
+        user.setLogin("john@email.com");
+        user.setUrlProfilePic("https://cloudinary.com/profile.jpg");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userFollowRepository.countFollowersByUserId(userId)).thenReturn(5L);
+        when(userFollowRepository.countFollowingByUserId(userId)).thenReturn(10L);
+
+        var result = userService.findUserById(userId);
+
+        assertNotNull(result);
+        assertEquals(userId, result.id());
+        assertEquals("John Doe", result.name());
+        assertEquals("john@email.com", result.login());
+        assertEquals("https://cloudinary.com/profile.jpg", result.urlProfilePic());
+        assertEquals(5L, result.followersCount());
+        assertEquals(10L, result.followingCount());
+
+        verify(userRepository).findById(userId);
+        verify(userFollowRepository).countFollowersByUserId(userId);
+        verify(userFollowRepository).countFollowingByUserId(userId);
+    }
+
+    @Test
+    @DisplayName("Should throw EntityNotFoundException when user not found by id as DTO")
+    void findUserByIdAsDtoNotFound() {
+        UUID userId = UUID.randomUUID();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
+                () -> userService.findUserById(userId));
+
+        assertEquals("User not found with id: " + userId, exception.getMessage());
+        verify(userRepository).findById(userId);
     }
 
     @Test
@@ -117,13 +164,17 @@ class UserServiceTest {
         existingUser.setLogin("old@email.com");
         existingUser.setPassword("oldPassword");
 
-        UpdateUserRequestDTO updateUserDTO =
-                new UpdateUserRequestDTO("New Name", "new@email.com", "newPassword", null);
+        UpdateUserCommand command = UpdateUserCommand.builder()
+                .userId(id)
+                .name("New Name")
+                .email("new@email.com")
+                .password("newPassword")
+                .build();
 
         when(userRepository.findById(id)).thenReturn(Optional.of(existingUser));
         when(bCryptPasswordEncoder.encode("newPassword")).thenReturn("encodedNewPassword");
 
-        UpdateUserResponseDTO response = userService.updateUser(id, updateUserDTO);
+        UpdateUserResponseDTO response = userService.updateUser(command);
 
         assertEquals("New Name", response.name());
         assertEquals("new@email.com", response.email());
@@ -138,9 +189,14 @@ class UserServiceTest {
     @DisplayName("Should throw exception when updating non-existent user")
     void updateUserNotFound() {
         UUID id = UUID.randomUUID();
-        UpdateUserRequestDTO updateUserDTO = new UpdateUserRequestDTO("Name", "email@email.com", "password", null);
+        UpdateUserCommand command = UpdateUserCommand.builder()
+                .userId(id)
+                .name("Name")
+                .email("email@email.com")
+                .password("password")
+                .build();
         when(userRepository.findById(id)).thenReturn(Optional.empty());
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> userService.updateUser(id, updateUserDTO));
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> userService.updateUser(command));
         assertEquals("User not found", exception.getMessage());
         verify(userRepository).findById(id);
     }
@@ -149,9 +205,10 @@ class UserServiceTest {
     @DisplayName("Should delete user successfully")
     void deleteUserSuccess() {
         UUID id = UUID.randomUUID();
+        DeleteUserCommand command = DeleteUserCommand.builder().userId(id).build();
         when(userRepository.existsById(id)).thenReturn(true);
         doNothing().when(userRepository).deleteById(id);
-        userService.deleteUser(id);
+        userService.deleteUser(command);
         verify(userRepository).existsById(id);
         verify(userRepository).deleteById(id);
     }
@@ -160,8 +217,9 @@ class UserServiceTest {
     @DisplayName("Should throw exception when deleting non-existent user")
     void deleteUserNotFound() {
         UUID id = UUID.randomUUID();
+        DeleteUserCommand command = DeleteUserCommand.builder().userId(id).build();
         when(userRepository.existsById(id)).thenReturn(false);
-        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class, () -> userService.deleteUser(id));
+        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class, () -> userService.deleteUser(command));
         assertEquals("User not found with id: " + id, exception.getMessage());
         verify(userRepository).existsById(id);
         verify(userRepository, never()).deleteById(any());
@@ -177,11 +235,13 @@ class UserServiceTest {
         User followed = new User();
         followed.setId(followedId);
 
+        FollowCommand command = FollowCommand.builder().followerId(followerId).followedId(followedId).build();
+
         when(userRepository.findById(followerId)).thenReturn(Optional.of(follower));
         when(userRepository.findById(followedId)).thenReturn(Optional.of(followed));
         when(userFollowRepository.save(any(UserFollow.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertDoesNotThrow(() -> userService.follow(followerId, followedId));
+        assertDoesNotThrow(() -> userService.follow(command));
 
         verify(userFollowRepository).save(any(UserFollow.class));
     }
@@ -196,13 +256,15 @@ class UserServiceTest {
         User followed = new User();
         followed.setId(followedId);
 
+        FollowCommand command = FollowCommand.builder().followerId(followerId).followedId(followedId).build();
+
         when(userRepository.findById(followerId)).thenReturn(Optional.of(follower));
         when(userRepository.findById(followedId)).thenReturn(Optional.of(followed));
         when(userFollowRepository.save(any(UserFollow.class)))
                 .thenThrow(new org.springframework.dao.DataIntegrityViolationException("Duplicate entry"));
 
         IllegalStateException exception = assertThrows(IllegalStateException.class,
-                () -> userService.follow(followerId, followedId));
+                () -> userService.follow(command));
         assertEquals("User already follows this user", exception.getMessage());
     }
 
@@ -212,11 +274,13 @@ class UserServiceTest {
         UUID followerId = UUID.randomUUID();
         UUID followedId = UUID.randomUUID();
 
+        UnfollowCommand command = UnfollowCommand.builder().followerId(followerId).followedId(followedId).build();
+
         when(userFollowRepository
                 .deleteByFollower_IdAndFollowed_Id(followerId, followedId))
                 .thenReturn(1);
 
-        assertDoesNotThrow(() -> userService.unfollow(followerId, followedId));
+        assertDoesNotThrow(() -> userService.unfollow(command));
 
         verify(userFollowRepository)
                 .deleteByFollower_IdAndFollowed_Id(followerId, followedId);
@@ -228,10 +292,12 @@ class UserServiceTest {
         UUID followerId = UUID.randomUUID();
         UUID followedId = UUID.randomUUID();
 
+        UnfollowCommand command = UnfollowCommand.builder().followerId(followerId).followedId(followedId).build();
+
         when(userFollowRepository.deleteByFollower_IdAndFollowed_Id(followerId, followedId)).thenReturn(0);
 
         IllegalStateException exception = assertThrows(IllegalStateException.class,
-                () -> userService.unfollow(followerId, followedId));
+                () -> userService.unfollow(command));
         assertEquals("User does not follow this user", exception.getMessage());
         verify(userFollowRepository).deleteByFollower_IdAndFollowed_Id(followerId, followedId);
     }
@@ -241,8 +307,10 @@ class UserServiceTest {
     void followSameUserThrowsException() {
         UUID sameId = UUID.randomUUID();
 
+        FollowCommand command = FollowCommand.builder().followerId(sameId).followedId(sameId).build();
+
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> userService.follow(sameId, sameId));
+                () -> userService.follow(command));
         assertEquals("Cannot follow yourself", exception.getMessage());
     }
 
@@ -252,10 +320,12 @@ class UserServiceTest {
         UUID followerId = UUID.randomUUID();
         UUID followedId = UUID.randomUUID();
 
+        FollowCommand command = FollowCommand.builder().followerId(followerId).followedId(followedId).build();
+
         when(userRepository.findById(followerId)).thenReturn(Optional.empty());
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
-                () -> userService.follow(followerId, followedId));
+                () -> userService.follow(command));
         assertEquals(followerId + " not found", exception.getMessage());
     }
 
@@ -267,11 +337,13 @@ class UserServiceTest {
         User follower = new User();
         follower.setId(followerId);
 
+        FollowCommand command = FollowCommand.builder().followerId(followerId).followedId(followedId).build();
+
         when(userRepository.findById(followerId)).thenReturn(Optional.of(follower));
         when(userRepository.findById(followedId)).thenReturn(Optional.empty());
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
-                () -> userService.follow(followerId, followedId));
+                () -> userService.follow(command));
         assertEquals(followedId + " not found", exception.getMessage());
     }
 
@@ -372,6 +444,7 @@ class UserServiceTest {
     void getFollowersSuccess() {
         UUID userId = UUID.randomUUID();
         Pageable pageable = PageRequest.of(0, 10);
+        GetFollowersCommand command = GetFollowersCommand.builder().userId(userId).page(0).size(10).build();
 
         User follower1 = new User();
         follower1.setId(UUID.randomUUID());
@@ -389,7 +462,7 @@ class UserServiceTest {
         when(userRepository.existsById(userId)).thenReturn(true);
         when(userFollowRepository.findFollowersByUserId(userId, pageable)).thenReturn(followersPage);
 
-        var result = userService.getFollowers(userId, pageable);
+        var result = userService.getFollowers(command);
 
         assertNotNull(result);
         assertEquals(2, result.totalElements());
@@ -401,12 +474,12 @@ class UserServiceTest {
     @DisplayName("Should throw EntityNotFoundException when getting followers for non-existent user")
     void getFollowersUserNotFound() {
         UUID userId = UUID.randomUUID();
-        Pageable pageable = PageRequest.of(0, 10);
+        GetFollowersCommand command = GetFollowersCommand.builder().userId(userId).page(0).size(10).build();
 
         when(userRepository.existsById(userId)).thenReturn(false);
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
-                () -> userService.getFollowers(userId, pageable));
+                () -> userService.getFollowers(command));
 
         assertEquals("User not found with id: " + userId, exception.getMessage());
         verify(userRepository).existsById(userId);
@@ -417,6 +490,7 @@ class UserServiceTest {
     void getFollowingSuccess() {
         UUID userId = UUID.randomUUID();
         Pageable pageable = PageRequest.of(0, 10);
+        GetFollowingCommand command = GetFollowingCommand.builder().userId(userId).page(0).size(10).build();
 
         User following1 = new User();
         following1.setId(UUID.randomUUID());
@@ -434,7 +508,7 @@ class UserServiceTest {
         when(userRepository.existsById(userId)).thenReturn(true);
         when(userFollowRepository.findFollowingByUserId(userId, pageable)).thenReturn(followingPage);
 
-        var result = userService.getFollowing(userId, pageable);
+        var result = userService.getFollowing(command);
 
         assertNotNull(result);
         assertEquals(2, result.totalElements());
@@ -446,65 +520,14 @@ class UserServiceTest {
     @DisplayName("Should throw EntityNotFoundException when getting following for non-existent user")
     void getFollowingUserNotFound() {
         UUID userId = UUID.randomUUID();
-        Pageable pageable = PageRequest.of(0, 10);
+        GetFollowingCommand command = GetFollowingCommand.builder().userId(userId).page(0).size(10).build();
 
         when(userRepository.existsById(userId)).thenReturn(false);
 
         EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
-                () -> userService.getFollowing(userId, pageable));
+                () -> userService.getFollowing(command));
 
         assertEquals("User not found with id: " + userId, exception.getMessage());
         verify(userRepository).existsById(userId);
-    }
-
-
-    @Test
-    @DisplayName("Should get user information by token successfully")
-    void getUserInformationSuccess() {
-        UUID userId = UUID.randomUUID();
-        String token = "valid-jwt-token";
-
-        User user = new User();
-        user.setId(userId);
-        user.setName("John Doe");
-        user.setLogin("john@email.com");
-        user.setUrlProfilePic("https://cloudinary.com/profile.jpg");
-
-        when(tokenService.getSubjectIdFromToken(token)).thenReturn(userId.toString());
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(userFollowRepository.countFollowersByUserId(userId)).thenReturn(5L);
-        when(userFollowRepository.countFollowingByUserId(userId)).thenReturn(10L);
-
-        var result = userService.getUserInformation(token);
-
-        assertNotNull(result);
-        assertEquals(userId, result.id());
-        assertEquals("John Doe", result.name());
-        assertEquals("john@email.com", result.login());
-        assertEquals("https://cloudinary.com/profile.jpg", result.urlProfilePic());
-        assertEquals(5L, result.followersCount());
-        assertEquals(10L, result.followingCount());
-
-        verify(tokenService).getSubjectIdFromToken(token);
-        verify(userRepository).findById(userId);
-        verify(userFollowRepository).countFollowersByUserId(userId);
-        verify(userFollowRepository).countFollowingByUserId(userId);
-    }
-
-    @Test
-    @DisplayName("Should throw EntityNotFoundException when user not found for token")
-    void getUserInformationUserNotFound() {
-        UUID userId = UUID.randomUUID();
-        String token = "valid-jwt-token";
-
-        when(tokenService.getSubjectIdFromToken(token)).thenReturn(userId.toString());
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class,
-                () -> userService.getUserInformation(token));
-
-        assertEquals("User not found with id: " + userId, exception.getMessage());
-        verify(tokenService).getSubjectIdFromToken(token);
-        verify(userRepository).findById(userId);
     }
 }

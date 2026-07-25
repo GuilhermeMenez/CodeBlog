@@ -47,7 +47,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       PORT: 8080
-      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-codeblog}:sslmode=disable
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-codeblog}
+      DATABASE_SSLMODE: disable
       DATABASE_USERNAME: ${DATABASE_USERNAME:-codeblog_user}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-change_me}
       REDIS_HOST: redis

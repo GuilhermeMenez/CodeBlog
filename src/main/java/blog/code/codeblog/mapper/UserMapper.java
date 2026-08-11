@@ -1,11 +1,6 @@
 package blog.code.codeblog.mapper;
 
-import blog.code.codeblog.command.user.DeleteUserCommand;
-import blog.code.codeblog.command.user.FollowCommand;
-import blog.code.codeblog.command.user.GetFollowersCommand;
-import blog.code.codeblog.command.user.GetFollowingCommand;
-import blog.code.codeblog.command.user.UnfollowCommand;
-import blog.code.codeblog.command.user.UpdateUserCommand;
+import blog.code.codeblog.command.user.*;
 import blog.code.codeblog.dto.follow.FollowUnfollowRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserRequestDTO;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
@@ -89,5 +84,8 @@ public class UserMapper {
                 .login(user.getLogin())
                 .urlProfilePic(user.getUrlProfilePic())
                 .build();
+    }
+    public User toUserEntity(CreateUserCommand command) {
+        return new User(command.getName(), command.getEmail(), command.getCredential());
     }
 }

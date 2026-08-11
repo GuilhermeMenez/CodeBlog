@@ -1,11 +1,6 @@
 package blog.code.codeblog.service.interfaces;
 
-import blog.code.codeblog.command.user.DeleteUserCommand;
-import blog.code.codeblog.command.user.FollowCommand;
-import blog.code.codeblog.command.user.GetFollowersCommand;
-import blog.code.codeblog.command.user.GetFollowingCommand;
-import blog.code.codeblog.command.user.UnfollowCommand;
-import blog.code.codeblog.command.user.UpdateUserCommand;
+import blog.code.codeblog.command.user.*;
 import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
 import blog.code.codeblog.dto.user.CreateUserDTO;
@@ -21,7 +16,7 @@ public interface UserServiceInterface {
     Optional<User> findById(UUID id);
     UserResponseDTO findUserById(UUID id);
     User findByLogin(String login);
-    void saveUser(CreateUserDTO user);
+    User saveUser(CreateUserCommand user);
     UpdateUserResponseDTO updateUser(UpdateUserCommand command);
     void deleteUser(DeleteUserCommand command);
     ImageUploadResponseDTO saveUploadProfilePic(UUID userId, String profilePicUrl, String profilePicId);

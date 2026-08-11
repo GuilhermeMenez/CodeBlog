@@ -1,6 +1,7 @@
 package blog.code.codeblog.config.handlers;
 
 import blog.code.codeblog.error.ErrorResponse;
+import blog.code.codeblog.execptions.TooManyRequests;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -121,7 +122,6 @@ public class GlobalExceptionHandler {
     }
 
 
-
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
         log.warn("Validation error: {}", ex.getMessage());
@@ -212,6 +212,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+
+    @ExceptionHandler(TooManyRequests.class)
+    public ResponseEntity<ErrorResponse> handleTooManyRequests(TooManyRequests ex, HttpServletRequest request) {
+        log.warn("Too many requests: {}", ex.getMessage());
+        ErrorResponse response = createErrorResponse(
+                HttpStatus.TOO_MANY_REQUESTS,
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(response);
+    }
 
 
     private ErrorResponse createErrorResponse(HttpStatus status, String error, String path) {

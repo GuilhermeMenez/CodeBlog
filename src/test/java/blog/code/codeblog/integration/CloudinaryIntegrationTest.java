@@ -1,5 +1,6 @@
 package blog.code.codeblog.integration;
 
+import blog.code.codeblog.repository.UserRepository;
 import blog.code.codeblog.service.TokenService;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.Uploader;
@@ -44,7 +45,7 @@ class CloudinaryIntegrationTest {
     private Cloudinary cloudinary;
 
     @Autowired
-    private blog.code.codeblog.repository.UserRepository userRepository;
+    private UserRepository userRepository;
 
     private User testUser;
     private String authToken;

@@ -1,14 +1,10 @@
 package blog.code.codeblog.service;
 
-import blog.code.codeblog.command.user.DeleteUserCommand;
-import blog.code.codeblog.command.user.FollowCommand;
-import blog.code.codeblog.command.user.GetFollowersCommand;
-import blog.code.codeblog.command.user.GetFollowingCommand;
-import blog.code.codeblog.command.user.UnfollowCommand;
-import blog.code.codeblog.command.user.UpdateUserCommand;
+import blog.code.codeblog.command.user.*;
 import blog.code.codeblog.dto.PageResponseDTO;
 import blog.code.codeblog.dto.cloudinary.ImageUploadResponseDTO;
 import blog.code.codeblog.dto.user.*;
+import blog.code.codeblog.enums.AuthFlow;
 import blog.code.codeblog.enums.FlowImageFlag;
 import blog.code.codeblog.mapper.PageMapper;
 import blog.code.codeblog.mapper.UserMapper;
@@ -88,26 +84,35 @@ public class UserService implements UserServiceInterface {
     }
 
     @Override
-    public void saveUser(CreateUserDTO user){
-        log.info("[saveUser] Saving user with login: {}", user.email());
+    public User saveUser(CreateUserCommand user){
+        log.info("[saveUser] Saving user with login: {}", user.getEmail());
 
-        String encryptedPassword = bCryptPasswordEncoder.encode(user.password());
-        User newUser = new User(user.name(), user.email(), encryptedPassword);
+        if (user.getFlow() == AuthFlow.OTP) {
+            log.warn("[saveUser] Password is empty for user: {}. Generating a random password.", user.getEmail());
+            var randomPassword = (UUID.randomUUID().toString());
+            user.setCredential(randomPassword);
+        }
+
+        String encryptedPassword = bCryptPasswordEncoder.encode(user.getCredential());
+        user.setCredential(encryptedPassword);
+
+        User newUser = UserMapper.toUserEntity(user);
         userRepository.save(newUser);
 
-        log.info("[saveUser] User saved successfully. login: {}", user.email());
+        log.info("[saveUser] User saved successfully. login: {}", user.getEmail());
 
 
-        if (user.profileImage() != null && !user.profileImage().isEmpty()) {
+        if (user.getProfileImage() != null && !user.getProfileImage().isEmpty()) {
             log.info("[register] Processing profile image for user: {}", newUser.getId());
             try {
-                cloudinaryService.uploadFile(user.profileImage(), FlowImageFlag.PROFILE, newUser.getId().toString(), null);
+                cloudinaryService.uploadFile(user.getProfileImage(), FlowImageFlag.PROFILE, newUser.getId().toString(), null);
                 saveUploadProfilePic(newUser.getId(), newUser.getUrlProfilePic(), newUser.getProfilePicId());
                 log.info("[register] Profile image uploaded and saved successfully for user: {}", newUser.getId());
             } catch (IOException e) {
                 log.error("[register] Failed to upload profile image for user: {}. Error: {}", newUser.getId(), e.getMessage());
             }
         }
+        return newUser;
     }
 
     @Override
@@ -148,13 +153,11 @@ public class UserService implements UserServiceInterface {
     }
 
 
-    //todo verificar se o usuario pode realizar a acao
     @CacheEvict(value = USER_CACHE, key = "#userId")
     public ImageUploadResponseDTO saveUploadProfilePic(UUID userId, String profilePicUrl, String profilePicId) throws AccessDeniedException {
         log.info("[updateProfilePic] Attempting to update profile pic for user with id: {}", userId);
 
         User existingUser = getAuthorizedUser(userId);
-
 
         existingUser.setUrlProfilePic(profilePicUrl);
         existingUser.setProfilePicId(profilePicId);

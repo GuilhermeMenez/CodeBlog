@@ -94,7 +94,7 @@ class GlobalExceptionHandlerIntegrationTest {
     void shouldReturn401ForInvalidCredentials() throws Exception {
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"login\":\"invalid\",\"password\":\"invalid\"}"))
+                        .content("{\"login\":\"invalid@example.com\",\"credential\":\"invalid\",\"flow\":\"PASSWORD\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.status", equalTo(401)))

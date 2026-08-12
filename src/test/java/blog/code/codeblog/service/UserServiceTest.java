@@ -1,13 +1,8 @@
 package blog.code.codeblog.service;
 
-import blog.code.codeblog.command.user.DeleteUserCommand;
-import blog.code.codeblog.command.user.FollowCommand;
-import blog.code.codeblog.command.user.GetFollowersCommand;
-import blog.code.codeblog.command.user.GetFollowingCommand;
-import blog.code.codeblog.command.user.UnfollowCommand;
-import blog.code.codeblog.command.user.UpdateUserCommand;
+import blog.code.codeblog.command.user.*;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
-import blog.code.codeblog.dto.user.CreateUserDTO;
+import blog.code.codeblog.enums.AuthFlow;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.model.UserFollow;
 import blog.code.codeblog.repository.UserFollowRepository;
@@ -139,17 +134,50 @@ class UserServiceTest {
 
 
     @Test
-    @DisplayName("Should save user successfully")
+    @DisplayName("Should save user successfully with PASSWORD flow")
     void saveUserSuccess() {
-        CreateUserDTO createUserDTO = new CreateUserDTO("John", "john@email.com", "password123", null, null);
+        CreateUserCommand cmd = CreateUserCommand.builder()
+                .name("John")
+                .email("john@email.com")
+                .credential("password123")
+                .flow(AuthFlow.PASSWORD)
+                .profileImage(null)
+                .build();
 
         when(bCryptPasswordEncoder.encode("password123")).thenReturn("encodedPassword");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertDoesNotThrow(() -> userService.saveUser(createUserDTO));
+        User saved = assertDoesNotThrow(() -> userService.saveUser(cmd));
 
+        assertNotNull(saved);
+        assertEquals("john@email.com", saved.getLogin());
+        assertEquals("encodedPassword", saved.getPassword());
         verify(bCryptPasswordEncoder).encode("password123");
         verify(userRepository).save(any(User.class));
+    }
+
+
+
+    @Test
+    @DisplayName("Should save user successfully with OTP flow generating random password")
+    void saveUserSuccessOtpFlow() {
+        CreateUserCommand cmd = CreateUserCommand.builder()
+                .name("John")
+                .email("john@email.com")
+                .credential(null)
+                .flow(AuthFlow.OTP)
+                .profileImage(null)
+                .build();
+
+        when(bCryptPasswordEncoder.encode(any(String.class))).thenReturn("encodedRandom");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User saved = assertDoesNotThrow(() -> userService.saveUser(cmd));
+
+        assertNotNull(saved);
+        assertEquals("encodedRandom", saved.getPassword());
+        verify(userRepository).save(any(User.class));
+        verify(bCryptPasswordEncoder).encode(any(String.class));
     }
 
 

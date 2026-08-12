@@ -2,7 +2,6 @@ package blog.code.codeblog.service;
 
 import blog.code.codeblog.command.user.*;
 import blog.code.codeblog.dto.user.UpdateUserResponseDTO;
-import blog.code.codeblog.dto.user.CreateUserDTO;
 import blog.code.codeblog.enums.AuthFlow;
 import blog.code.codeblog.model.User;
 import blog.code.codeblog.model.UserFollow;

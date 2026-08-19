@@ -50,8 +50,8 @@ public class SecurityConfiguration {
                                 "/v3/api-docs.yaml",
                                 "/actuator/health"
                         ).permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/login/**").permitAll()
-                        .requestMatchers(HttpMethod.POST,"/auth/register/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST,"/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST,"/auth/otp/send").permitAll()
 
                         .anyRequest().authenticated())

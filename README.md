@@ -4,20 +4,20 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.5-6DB33F?style=flat-square&logo=spring-boot)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-42.7.3-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=flat-square&logo=redis)](https://redis.io/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)]
 
 ## 📋 Visão Geral
 
-**CodeBlog** é uma plataforma de blog social escalável desenvolvida em **Java 21 com Spring Boot 3.4.5**, projetada para permitir que programadores compartilhem conteúdo técnico, comentem posts e interajam com outros usuários através de um sistema de seguimento (follow).
+**CodeBlog** é uma plataforma de blog social escalável desenvolvida em **Java 21 com Spring Boot 3.4.5**, projetada para permitir que programadores compartilhem conteúdo técnico, comentem posts e sigam uns aos outros.
 
-A aplicação implementa técnicas avançadas de paginação, otimização de performance com Redis, segurança moderna com JWT, e fornece uma **API RESTful robusta** com documentação automática via OpenAPI 3.0/Swagger.
+A aplicação implementa técnicas de paginação, otimização de performance com Redis, segurança com JWT, e fornece uma **API RESTful** com documentação automática via OpenAPI 3.0/Swagger.
 
 ## 🎯 Funcionalidades Principais
 
 ### 👥 Gestão de Usuários
-- ✅ Registro e autenticação com JWT
-- ✅ Atualização de perfil com foto (integração Cloudinary)
-- ✅ Sistema de seguimento/unfollowing
+- ✅ Registro e autenticação com JWT ou Auth0 via OTP
+- ✅ Atualização de foto de perfil (integração Cloudinary)
+- ✅ Sistema de seguimento
 - ✅ Visualização de seguidores e de quem o usuário segue
 - ✅ Exclusão de conta
 
@@ -108,48 +108,61 @@ Banco de Dados (PostgreSQL/H2)
 ### Estrutura de Diretórios
 ```
 src/main/java/blog/code/codeblog/
+├── command/             # Objetos auxiliares para comandos de aplicação
+├── config/              # Configurações da aplicação
+│   ├── security/        # Segurança, filtros e autenticação
+│   └── handlers/        # Tratamento global de exceções
 ├── controller/          # REST Controllers (endpoints)
 │   ├── AutheticationController
 │   ├── UserController
 │   ├── PostController
 │   ├── CommentController
-│   └── CloudnaryController
-├── service/            # Lógica de negócio
-│   ├── UserService
-│   ├── PostService
-│   ├── CommentService
-│   ├── AuthorizationService
-│   └── CloudinaryService
+│   └── CloudinaryController
+├── dto/                 # Data Transfer Objects
+│   ├── authentication/
+│   ├── cloudinary/
+│   ├── comment/
+│   ├── follow/
+│   ├── post/
+│   └── user/
+├── facade/              # Camada de orquestração entre controller e service
+├── mapper/              # Conversores entre entidades e DTOs
+├── model/               # Entidades JPA
+│   ├── User
+│   ├── Post
+│   ├── Comment
+│   └── UserFollow
 ├── repository/         # Acesso a dados (JPA)
 │   ├── UserRepository
 │   ├── PostRepository
 │   ├── CommentRepository
 │   └── UserFollowRepository
-├── model/              # Entidades JPA
-│   ├── User
-│   ├── Post
-│   ├── Comment
-│   └── UserFollow
-├── dto/                # Data Transfer Objects
-│   ├── UserDTO
-│   ├── PostDTO
-│   ├── CommentDTO
-│   └── AuthDTO
-├── config/             # Configurações
-│   ├── security/       # Security Filter, JWT Validation
-│   ├── handlers/       # Global Exception Handler
-│   ├── RedisConfig
-│   └── SwaggerConfig
+├── service/            # Lógica de negócio
+│   ├── integration/
+│   ├── interfaces/
+│   ├── provider/
+│   ├── AuthenticationService
+│   ├── AuthorizationService
+│   ├── CloudinaryService
+│   ├── CommentService
+│   ├── FeedService
+│   ├── PostService
+│   ├── TokenService
+│   └── UserService
 ├── enums/              # Enumerações
 ├── error/              # Tratamento de erros personalizados
+├── execptions/         # Exceções específicas do projeto
 └── CodeBlogApplication # Classe principal
 
 src/test/java/blog/code/codeblog/
+├── config/
+│   ├── handlers/       # Testes do handler global
+│   └── security/       # Testes de segurança
 ├── controller/         # Testes dos controllers
-├── service/            # Testes dos services
-├── repository/         # Testes dos repositories
 ├── integration/        # Testes de integração
-└── config/             # Testes de configuração
+├── mapper/             # Testes dos mappers
+├── repository/         # Testes dos repositories
+└── service/            # Testes dos services
 ```
 
 ---
@@ -226,47 +239,51 @@ A aplicação estará disponível em: `http://localhost:8080`
 ### 🔐 Autenticação
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| POST | `/api/auth/register` | Registrar novo usuário |
-| POST | `/api/auth/login` | Fazer login e obter JWT token |
-| POST | `/api/auth/refresh` | Renovar token JWT |
+| POST | `/auth/register` | Registrar novo usuário |
+| POST | `/auth/login` | Fazer login e obter JWT token |
+| POST | `/auth/logout` | Encerrar sessão atual |
+| POST | `/auth/otp/send` | Enviar OTP para autenticação passwordless |
+| POST | `/auth/otp/verify` | Validar OTP recebido |
 
 ### 👤 Usuários
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/users/{id}` | Obter perfil do usuário |
-| PUT | `/api/users/{id}` | Atualizar perfil |
-| DELETE | `/api/users/{id}` | Deletar conta |
-| GET | `/api/users/{id}/followers` | Listar seguidores |
-| GET | `/api/users/{id}/following` | Listar seguindo |
+| GET | `/user/me` | Obter perfil do usuário logado |
+| GET | `/user/{id}` | Obter perfil de um usuário pelo ID |
+| PUT | `/user/edit` | Atualizar perfil do usuário logado |
+| DELETE | `/user` | Deletar conta do usuário logado |
+| GET | `/user/{id}/followers` | Listar seguidores |
+| GET | `/user/{id}/following` | Listar seguindo |
+| POST | `/user/follow` | Seguir usuário |
+| POST | `/user/unfollow` | Deixar de seguir usuário |
 
 ### 📝 Posts
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/posts` | Feed balanceado (paginado) |
-| GET | `/api/posts/{id}` | Obter post específico |
-| POST | `/api/posts` | Criar novo post |
-| PUT | `/api/posts/{id}` | Atualizar post próprio |
-| DELETE | `/api/posts/{id}` | Deletar post próprio |
-| GET | `/api/posts/user/{userId}` | Posts de um usuário |
+| GET | `/post/posts` | Listar todos os posts |
+| GET | `/post/{id}` | Obter post específico |
+| GET | `/post/users/{userId}/feed` | Feed balanceado (paginado) |
+| GET | `/post/userPosts/{id}` | Posts de um usuário |
+| POST | `/post/newpost` | Criar novo post |
+| PUT | `/post/edit` | Atualizar post próprio |
+| DELETE | `/post/{id}` | Deletar post próprio |
+| GET | `/post/{id}/comments` | Listar comentários de um post |
+| POST | `/post/upload` | Upload de imagem para um post |
 
 ### 💬 Comentários
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| GET | `/api/comments/post/{postId}` | Listar comentários de um post |
-| POST | `/api/comments` | Adicionar comentário |
-| DELETE | `/api/comments/{id}` | Deletar comentário próprio |
-
-### 🔗 Follow
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| POST | `/api/users/{id}/follow` | Seguir usuário |
-| DELETE | `/api/users/{id}/unfollow` | Deixar de seguir usuário |
+| POST | `/comment/create` | Adicionar comentário |
+| PUT | `/comment/update/{id}` | Atualizar comentário |
+| DELETE | `/comment/delete/{id}` | Deletar comentário |
 
 ### 📸 Mídia
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| POST | `/api/cloudinary/upload` | Upload de imagem |
-| DELETE | `/api/cloudinary/{publicId}` | Deletar imagem |
+| POST | `/image/upload` | Upload de imagem |
+| DELETE | `/image/delete` | Deletar imagem |
+
+> Observação: os endpoints acima refletem os `@RequestMapping`/`@GetMapping`/`@PostMapping` reais dos controllers atuais. Em alguns pontos, o projeto usa nomes com typos históricos, como `AutheticationController` e `execptions/`.
 
 ---
 
@@ -282,7 +299,7 @@ A aplicação estará disponível em: `http://localhost:8080`
 ✅ **Global Exception Handler**: Mensagens de erro seguras e consistentes
 
 ### Versões Seguras Override
-```xml
+```text
 Spring Framework: 6.2.13
 Spring Security: 6.4.10
 Tomcat: 10.1.47 (corrige CVE-2025-31651)
@@ -394,7 +411,7 @@ AssertJ: 3.27.7 (corrige CVE-2026-24400)
 
 ## 📝 Licença
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+Este projeto está sob a licença MIT.
 
 ---
 
@@ -422,9 +439,6 @@ Para dúvidas ou problemas, abra uma issue no repositório ou entre em contato a
 - [ ] Implementação do uso de IA para auxiliar na criação dos posts
 
 ### 🔍 Melhorias infraestruturais
-- [ ] Implementar uso de docker
-- [ ] Configurar CI/CD para diferentes ambientes
-- [ ] Deploy em algum serviço de hospedagem
 - [ ] Usar algum serviço de monitoramento (ex: New Relic, Datadog)
 - [ ] Usar algum servico de logging (ex: Kibana, OpenSearch)
 

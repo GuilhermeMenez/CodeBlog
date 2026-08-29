@@ -21,7 +21,19 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: codeblog_test
+          POSTGRES_USER: codeblog
+          POSTGRES_PASSWORD: codeblog
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U codeblog -d codeblog_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -51,6 +63,9 @@ jobs:
           SPRING_DATA_REDIS_USERNAME: default
           SPRING_DATA_REDIS_PASSWORD: ""
           API_SECURITY_TOKEN_SECRET: ${{ secrets.JWT_SECRET }}
+          SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/codeblog_test?sslmode=disable
+          SPRING_DATASOURCE_USERNAME: codeblog
+          SPRING_DATASOURCE_PASSWORD: codeblog
         run: ./mvnw -B verify
 
       - name: Upload test reports

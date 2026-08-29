@@ -9,7 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'master' && 'prod' || 'ci' }}
 
     services:
       redis:
@@ -18,19 +17,6 @@ jobs:
           - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: codeblog_test
-          POSTGRES_USER: codeblog
-          POSTGRES_PASSWORD: codeblog
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U codeblog -d codeblog_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -50,22 +36,12 @@ jobs:
 
       - name: Build and test
         env:
-          SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE }}
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-          AUTH0_ISSUER_URI: ${{ secrets.AUTH0_ISSUER_URI }}
-          AUTH0_AUDIENCE: ${{ secrets.AUTH0_AUDIENCE }}
-          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
-          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+          SPRING_PROFILES_ACTIVE: test
           SPRING_DATA_REDIS_HOST: 127.0.0.1
           SPRING_DATA_REDIS_PORT: 6379
           SPRING_DATA_REDIS_USERNAME: default
           SPRING_DATA_REDIS_PASSWORD: ""
-          API_SECURITY_TOKEN_SECRET: ${{ secrets.JWT_SECRET }}
-          SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/codeblog_test?sslmode=disable
-          SPRING_DATASOURCE_USERNAME: codeblog
-          SPRING_DATASOURCE_PASSWORD: codeblog
+          API_SECURITY_TOKEN_SECRET: MY-SECRET-KEY
         run: ./mvnw -B verify
 
       - name: Upload test reports

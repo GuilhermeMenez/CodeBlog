@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: "23"
           cache: maven
 
       - name: Give execute permission to mvnw
@@ -37,10 +37,6 @@ jobs:
       - name: Build and test
         env:
           SPRING_PROFILES_ACTIVE: test
-          SPRING_DATA_REDIS_HOST: 127.0.0.1
-          SPRING_DATA_REDIS_PORT: 6379
-          SPRING_DATA_REDIS_USERNAME: default
-          SPRING_DATA_REDIS_PASSWORD: ""
           API_SECURITY_TOKEN_SECRET: MY-SECRET-KEY
         run: ./mvnw -B verify
 

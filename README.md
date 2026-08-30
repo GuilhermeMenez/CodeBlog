@@ -89,6 +89,29 @@ A aplicação implementa técnicas de paginação, otimização de performance c
 | Mockito | - | Mocking de dependências |
 | AssertJ | 3.27.7 | Assertions fluentes |
 | Spring Boot Test | - | Utilitários de teste |
+| Testcontainers | 1.21.4 | Redis efêmero para os testes de integração |
+
+#### Executando os testes
+
+```bash
+./mvnw test
+```
+
+Os testes de integração precisam de um Redis. Eles o resolvem sozinhos, nesta ordem:
+
+1. **Redis externo**, se você indicar um — use isto em máquinas sem Docker:
+   ```bash
+   ./mvnw test -Dredis.test.host=localhost -Dredis.test.port=6379
+   # ou, via variáveis de ambiente: REDIS_TEST_HOST / REDIS_TEST_PORT
+   ```
+   Um `redis-server` instalado localmente (`apt install redis-server`, `brew install redis`) já serve.
+   Os testes apagam apenas as chaves que eles mesmos criam (`integration:test:*` e os prefixos dos
+   caches), nunca um `FLUSHDB` — mas ainda assim prefira uma instância descartável.
+
+2. **Testcontainers**, se houver Docker: sobe um `redis:7-alpine` efêmero automaticamente. Nada a fazer.
+
+3. **Nenhum dos dois**: as classes que dependem de Redis são puladas com uma mensagem explicando
+   como habilitá-las, e o restante da suíte (a maioria dos testes) roda normalmente.
 
 ---
 
